@@ -8,7 +8,7 @@
 namespace CSERenderer
 {
 
-class GPUDataLayout_Vulkan;
+class GPUDataLayout;
 
 enum DataLayoutMemberType
 {
@@ -30,30 +30,30 @@ struct DataLayoutMemberDescription
 	size_t offset;
 	size_t size;
 	DataLayoutMemberType type;
-	GPUDataLayout_Vulkan* typeLayout;
+	GPUDataLayout* typeLayout;
 
 	DataLayoutMemberDescription();
 	DataLayoutMemberDescription(std::string& memberName,
 		size_t offset,
 		size_t size,
 		DataLayoutMemberType type,
-		GPUDataLayout_Vulkan* typeLayout);
+		GPUDataLayout* typeLayout);
 	DataLayoutMemberDescription(const DataLayoutMemberDescription& other);
 	~DataLayoutMemberDescription();
 
 	void operator=(const DataLayoutMemberDescription& other);
 };
 
-class GPUDataLayout_Vulkan
+class GPUDataLayout
 {
 public:
-	GPUDataLayout_Vulkan();
-	GPUDataLayout_Vulkan(std::string& name, std::vector<DataLayoutMemberDescription>& members);
-	GPUDataLayout_Vulkan(const GPUDataLayout_Vulkan& other);
-	~GPUDataLayout_Vulkan();
+	GPUDataLayout();
+	GPUDataLayout(std::string& name, std::vector<DataLayoutMemberDescription>& members);
+	GPUDataLayout(const GPUDataLayout& other);
+	~GPUDataLayout();
 
-	void operator=(const GPUDataLayout_Vulkan& other);
-	bool operator==(const GPUDataLayout_Vulkan& other);
+	void operator=(const GPUDataLayout& other);
+	bool operator==(const GPUDataLayout& other);
 
 	const std::string& GetName() const;
 	uint32_t GetHashID() const;
@@ -68,16 +68,15 @@ private:
 	std::vector<DataLayoutMemberDescription> _members;
 };
 
-class GPUDataLayoutBuilder_Vulkan
+class GPUDataLayoutBuilder
 {
 public:
-	GPUDataLayoutBuilder_Vulkan();
-	~GPUDataLayoutBuilder_Vulkan();
+	GPUDataLayoutBuilder();
+	~GPUDataLayoutBuilder();
 
 	void SetName(std::string& name);
-	void AppendMember(std::string& name, size_t size, DataLayoutMemberType type, GPUDataLayout_Vulkan* typeLayout);
-	void AppendMember(std::string& name, size_t size, size_t offset, DataLayoutMemberType type, GPUDataLayout_Vulkan* typeLayout);
-	GPUDataLayout_Vulkan Build();
+	void AppendMember(std::string& name, size_t size, size_t offset, DataLayoutMemberType type, GPUDataLayout* typeLayout);
+	GPUDataLayout Build();
 
 private:
 	std::string _name;

@@ -10,11 +10,11 @@ struct ShaderProcessingInfo
 {
 	struct PushConstantLayout
 	{
-		GPUDataLayout_Vulkan layout;
+		GPUDataLayout layout;
 		GPUPipelineStageFlags_Vulkan stage = PIPELINE_STAGE_NULL;
 	};
 	std::vector<DescriptorSetLayoutInfo::DescriptorSetBindingInfo> descriptorBindings;
-	std::vector<GPUDataLayout_Vulkan> inputLayouts;
+	std::vector<GPUDataLayout> inputLayouts;
 	std::vector<PushConstantLayout> pushConstantLayouts;
 };
 
@@ -22,9 +22,9 @@ class ShaderLayoutInfoBuilder
 {
 	struct InputEntry
 	{
-		GPUDataLayout_Vulkan layout;
+		GPUDataLayout layout;
 
-		InputEntry(const GPUDataLayout_Vulkan& layout);
+		InputEntry(const GPUDataLayout& layout);
 		InputEntry(const InputEntry& other);
 		~InputEntry();
 
@@ -33,10 +33,10 @@ class ShaderLayoutInfoBuilder
 
 	struct PushConstantEntry
 	{
-		GPUDataLayout_Vulkan layout;
+		GPUDataLayout layout;
 		GPUPipelineStageFlags_Vulkan stage;
 
-		PushConstantEntry(const GPUDataLayout_Vulkan& layout, GPUPipelineStageFlags_Vulkan stage);
+		PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
 		PushConstantEntry(const PushConstantEntry& other);
 		~PushConstantEntry();
 
@@ -50,8 +50,8 @@ public:
 	void AddShaderProcessingInfoData(const ShaderProcessingInfo& data);
 
 	void AddDescriptorBinding(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& descBinding);
-	void AddInputEntry(const GPUDataLayout_Vulkan& layout);
-	void AddPushConstantEntry(const GPUDataLayout_Vulkan& layout, GPUPipelineStageFlags_Vulkan stage);
+	void AddInputEntry(const GPUDataLayout& layout);
+	void AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
 
 	ShaderLayoutInfo Build();
 
@@ -64,7 +64,7 @@ private:
 CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags_Vulkan stage);
 CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags_Vulkan stage);
 
-CSECore::Expected<GPUDataLayout_Vulkan, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block);
+CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block);
 DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits numTraits);
 DescriptorSetLayoutInfo::DescriptorSetBindingInfo::DescriptorType SpvReflectDescriptorTypeToDescriptorType(SpvReflectDescriptorType descType);
 
@@ -109,7 +109,7 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvRefl
 	spvReflectEnumerateDescriptorSets(&module, &setCount, sets.data());
 
 	std::vector<DescriptorSetLayoutInfo::DescriptorSetBindingInfo> descriptors;
-	std::vector<GPUDataLayout_Vulkan> inputLayouts;
+	std::vector<GPUDataLayout> inputLayouts;
 	for (int i = 0; i < setCount; i++)
 	{
 		uint32_t bindingCount = sets[i]->binding_count;
@@ -120,7 +120,7 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvRefl
 
 			if (binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER)
 			{
-				CSECore::Expected<GPUDataLayout_Vulkan, std::string> result = CreateDataLayoutFromBlock(binding->block);
+				CSECore::Expected<GPUDataLayout, std::string> result = CreateDataLayoutFromBlock(binding->block);
 				if (result.HasUnexpected())
 				{
 					return CSECore::CreateUnexpected<ShaderProcessingInfo, std::string>(result.GetUnexpected());
@@ -147,7 +147,7 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvRefl
 	std::vector<ShaderProcessingInfo::PushConstantLayout> pushConstantLayouts;
 	for (int i = 0; i < pushConstantCount; i++)
 	{
-		CSECore::Expected<GPUDataLayout_Vulkan, std::string> result = CreateDataLayoutFromBlock(*pushConstants[i]);
+		CSECore::Expected<GPUDataLayout, std::string> result = CreateDataLayoutFromBlock(*pushConstants[i]);
 		if (result.HasUnexpected())
 		{
 			return CSECore::CreateUnexpected<ShaderProcessingInfo, std::string>(result.GetUnexpected());
@@ -168,9 +168,9 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvRefl
 	return CSECore::CreateExpected<ShaderProcessingInfo, std::string>(result);
 }
 
-CSECore::Expected<GPUDataLayout_Vulkan, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block)
+CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block)
 {
-	GPUDataLayoutBuilder_Vulkan builder;
+	GPUDataLayoutBuilder builder;
 	builder.SetName(std::string(block.name));
 
 	for (int i = 0; i < block.member_count; i++)
@@ -184,18 +184,18 @@ CSECore::Expected<GPUDataLayout_Vulkan, std::string> CreateDataLayoutFromBlock(c
 		
 		if (type == MEMBER_TYPE_NULL)
 		{
-			return CSECore::CreateUnexpected<GPUDataLayout_Vulkan, std::string>("Encountered an unsupported member type.");
+			return CSECore::CreateUnexpected<GPUDataLayout, std::string>("Encountered an unsupported member type.");
 		}
 
 		if (type == DataLayoutMemberType::MEMBER_TYPE_STRUCT || type == DataLayoutMemberType::MEMBER_TYPE_ARRAY)
 		{
-			CSECore::Expected<GPUDataLayout_Vulkan, std::string> structLayoutResult = CreateDataLayoutFromBlock(member);
+			CSECore::Expected<GPUDataLayout, std::string> structLayoutResult = CreateDataLayoutFromBlock(member);
 			if (structLayoutResult.HasUnexpected())
 			{
 				return structLayoutResult;
 			}
 
-			GPUDataLayout_Vulkan* layoutPtr = structLayoutResult.GetExpectedPtr();
+			GPUDataLayout* layoutPtr = structLayoutResult.GetExpectedPtr();
 			builder.AppendMember(name, size, offset, type, layoutPtr);
 			continue;
 		}
@@ -203,7 +203,7 @@ CSECore::Expected<GPUDataLayout_Vulkan, std::string> CreateDataLayoutFromBlock(c
 		builder.AppendMember(name, size, offset, type, nullptr);
 	}
 
-	return CSECore::CreateExpected<GPUDataLayout_Vulkan, std::string>(builder.Build());
+	return CSECore::CreateExpected<GPUDataLayout, std::string>(builder.Build());
 }
 
 DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
@@ -300,7 +300,7 @@ void ShaderLayoutInfoBuilder::AddDescriptorBinding(const DescriptorSetLayoutInfo
 	_descriptorBindings.push_back(descBinding);
 }
 
-void ShaderLayoutInfoBuilder::AddInputEntry(const GPUDataLayout_Vulkan& layout)
+void ShaderLayoutInfoBuilder::AddInputEntry(const GPUDataLayout& layout)
 {
 	for (int i = 0; i < _inputEntries.size(); i++)
 	{
@@ -313,7 +313,7 @@ void ShaderLayoutInfoBuilder::AddInputEntry(const GPUDataLayout_Vulkan& layout)
 	_inputEntries.push_back(InputEntry(layout));
 }
 
-void ShaderLayoutInfoBuilder::AddPushConstantEntry(const GPUDataLayout_Vulkan& layout, GPUPipelineStageFlags_Vulkan stage)
+void ShaderLayoutInfoBuilder::AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage)
 {
 	for (int i = 0; i < _pushConstantEntries.size(); i++)
 	{
@@ -349,7 +349,7 @@ ShaderLayoutInfo ShaderLayoutInfoBuilder::Build()
 	return layoutInfo;
 }
 
-ShaderLayoutInfoBuilder::InputEntry::InputEntry(const GPUDataLayout_Vulkan& layout)
+ShaderLayoutInfoBuilder::InputEntry::InputEntry(const GPUDataLayout& layout)
 	: layout(layout)
 {
 
@@ -371,7 +371,7 @@ void ShaderLayoutInfoBuilder::InputEntry::operator=(const InputEntry& other)
 	layout = other.layout;
 }
 
-ShaderLayoutInfoBuilder::PushConstantEntry::PushConstantEntry(const GPUDataLayout_Vulkan& layout, GPUPipelineStageFlags_Vulkan stage)
+ShaderLayoutInfoBuilder::PushConstantEntry::PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage)
 	: layout(layout), stage(stage)
 {
 

@@ -163,7 +163,7 @@ GPUPipelineLayoutInput_Vulkan::GPUPipelineLayoutInput_Vulkan()
 
 }
 
-GPUPipelineLayoutInput_Vulkan::GPUPipelineLayoutInput_Vulkan(const GPUDataLayout_Vulkan& inputLayout)
+GPUPipelineLayoutInput_Vulkan::GPUPipelineLayoutInput_Vulkan(const GPUDataLayout& inputLayout)
 	: inputLayout(inputLayout), hashID(UINT32_MAX)
 {
 	uint32_t hash = 0;
@@ -194,12 +194,12 @@ GPUPipelineLayoutPushConstant_Vulkan::GPUPipelineLayoutPushConstant_Vulkan()
 
 }
 
-GPUPipelineLayoutPushConstant_Vulkan::GPUPipelineLayoutPushConstant_Vulkan(const GPUDataLayout_Vulkan& pushConstantLayout, GPUPipelineStageFlags_Vulkan stage)
+GPUPipelineLayoutPushConstant_Vulkan::GPUPipelineLayoutPushConstant_Vulkan(const GPUDataLayout& pushConstantLayout, GPUPipelineStageFlags_Vulkan stage)
 	: pushConstantLayout(pushConstantLayout), stage(stage), hashID(UINT32_MAX)
 {
 	uint32_t hash = 0;
 	hash = hash ^ pushConstantLayout.GetHashID();
-	hash = hash ^ std::hash<GPUPipelineStageFlags_Vulkan>{}(stage);
+	hash = hash ^ CSECore::FNVHash<GPUPipelineStageFlags_Vulkan>(stage);
 	hashID = hash;
 }
 

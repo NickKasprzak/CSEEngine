@@ -1,6 +1,6 @@
 #pragma once
 #include "../GPUPipeline.h"
-#include "GPUDataLayout_Vulkan.h"
+#include "../GPUDataLayout.h"
 #include "refcount/Ref.h"
 #include "volk.h"
 
@@ -30,11 +30,11 @@ enum GPUPipelineStageFlags_Vulkan
 
 struct GPUPipelineLayoutInput_Vulkan
 {
-	GPUDataLayout_Vulkan inputLayout;
+	GPUDataLayout inputLayout;
 	uint32_t hashID;
 
 	GPUPipelineLayoutInput_Vulkan();
-	GPUPipelineLayoutInput_Vulkan(const GPUDataLayout_Vulkan& inputLayout);
+	GPUPipelineLayoutInput_Vulkan(const GPUDataLayout& inputLayout);
 	GPUPipelineLayoutInput_Vulkan(const GPUPipelineLayoutInput_Vulkan& other);
 	~GPUPipelineLayoutInput_Vulkan();
 
@@ -43,12 +43,12 @@ struct GPUPipelineLayoutInput_Vulkan
 
 struct GPUPipelineLayoutPushConstant_Vulkan
 {
-	GPUDataLayout_Vulkan pushConstantLayout;
+	GPUDataLayout pushConstantLayout;
 	GPUPipelineStageFlags_Vulkan stage;
 	uint32_t hashID;
 
 	GPUPipelineLayoutPushConstant_Vulkan();
-	GPUPipelineLayoutPushConstant_Vulkan(const GPUDataLayout_Vulkan& pushConstantLayout, GPUPipelineStageFlags_Vulkan stage);
+	GPUPipelineLayoutPushConstant_Vulkan(const GPUDataLayout& pushConstantLayout, GPUPipelineStageFlags_Vulkan stage);
 	GPUPipelineLayoutPushConstant_Vulkan(const GPUPipelineLayoutPushConstant_Vulkan& other);
 	~GPUPipelineLayoutPushConstant_Vulkan();
 
