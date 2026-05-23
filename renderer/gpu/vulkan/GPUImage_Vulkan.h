@@ -1,7 +1,9 @@
 #pragma once
 #include "../GPUImage.h"
-#include "vulkan/vulkan.h"
+#include "refcount/Ref.h"
+#include "volk.h"
 #include "vk_mem_alloc.h"
+#include <cstdint>
 
 namespace CSERenderer
 {
@@ -23,7 +25,12 @@ class GPUImage_Vulkan : public GPUImage
 {
 public:
 	GPUImage_Vulkan();
-	GPUImage_Vulkan(VulkanImageInfo* params, uint32_t queueFamily, VmaAllocator allocator);
+	GPUImage_Vulkan(VkImage image,
+		VkImageView imageView,
+		VulkanImageInfo& imageInfo,
+		VmaAllocator allocator,
+		VmaAllocation allocation,
+		uint32_t ID);
 	GPUImage_Vulkan(const GPUImage_Vulkan& other) = delete;
 	virtual ~GPUImage_Vulkan();
 
@@ -33,6 +40,7 @@ public:
 	VkImageView GetImageViewHandle();
 	VkImageUsageFlags GetImageUsage();
 	VkImageViewType GetImageViewType();
+	uint32_t GetID();
 
 	void SetSampler(VkFilter filter, VkSamplerAddressMode addressMode);
 	VkSampler GetSampler();
@@ -43,7 +51,11 @@ private:
 	VulkanImageInfo _info;
 	VmaAllocator _allocator;
 	VmaAllocation _allocation;
+	uint32_t _ID;
 	VkSampler _sampler;
 };
+
+// TODO: Move to whatever is pooling images
+CSECore::Ref<GPUImage> CreateImage_Vulkan(VulkanImageInfo* params, uint32_t queueFamily, VmaAllocator allocator);
 
 }

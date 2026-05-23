@@ -100,6 +100,15 @@ public:
 	}
 
 	template<typename Type>
+	Type* CastToPtr() const
+	{
+		CSE_ASSERT(_hasValue, "Cannot cast Any if no type exists.");
+		CSE_ASSERT(_callbacks == _getTypeCallbacks<Type>(), "Cannot cast Any to an incompatible type.");
+
+		return static_cast<Type*>(_getBuffer());
+	}
+
+	template<typename Type>
 	bool IsA() const
 	{
 		return _callbacks == _getTypeCallbacks<Type>();

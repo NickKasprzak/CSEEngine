@@ -64,22 +64,22 @@ void GPUDevice_Vulkan::Dispose()
 	vkb::destroy_instance(_instance);
 }
 
-const VkInstance GPUDevice_Vulkan::GetVkInstance()
+VkInstance GPUDevice_Vulkan::GetVkInstance()
 {
 	return _instance.instance;
 }
 
-const VkPhysicalDevice GPUDevice_Vulkan::GetVkPhysicalDevice()
+VkPhysicalDevice GPUDevice_Vulkan::GetVkPhysicalDevice()
 {
 	return _physDevice.physical_device;
 }
 
-const VkDevice GPUDevice_Vulkan::GetVkDevice()
+VkDevice GPUDevice_Vulkan::GetVkDevice()
 {
 	return _device.device;
 }
 
-const VmaAllocator GPUDevice_Vulkan::GetVMAAllocator()
+VmaAllocator GPUDevice_Vulkan::GetVMAAllocator()
 {
 	return _vmaAllocator;
 }

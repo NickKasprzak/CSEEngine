@@ -1,95 +1,105 @@
 #pragma once
 #include "../GPUPipeline.h"
-#include "vulkan/vulkan.h"
-#include <vector>
+#include "GPUDataLayout_Vulkan.h"
+#include "refcount/Ref.h"
+#include "volk.h"
 
 namespace CSERenderer
 {
 
-enum InputLayoutMemberType
+enum GPUPipelineStageFlags_Vulkan
 {
-	MEMBER_TYPE_INT,
-	MEMBER_TYPE_FLOAT,
-	MEMBER_TYPE_VEC3,
-	MEMBER_TYPE_VEC4,
-	MEMBER_TYPE_MAT3,
-	MEMBER_TYPE_MAT4
+	PIPELINE_STAGE_NULL = 0x0,
+	PIPELINE_STAGE_VERTEX = 0x1,
+	PIPELINE_STAGE_FRAGMENT = 0x2
 };
 
-struct InputLayoutMemberDescription
+/*
+* Stores a collection of GPUDataLayouts 
+* representing all state that can be passed into
+* the pipeline. This should only be for SSBOs 
+* and a push constant.
+* 
+* If this is created using multiple shaders on one
+* pipeline (ie. vertex and fragment shaders), any
+* duplicate type layouts will be omitted.
+* 
+* This should also input info on what attachment types
+* can be attached.
+*/
+
+struct GPUPipelineLayoutInput_Vulkan
 {
-	uint32_t nameHash;
-	uint32_t offset;
-	InputLayoutMemberType type;
+	GPUDataLayout_Vulkan inputLayout;
+	uint32_t hashID;
+
+	GPUPipelineLayoutInput_Vulkan();
+	GPUPipelineLayoutInput_Vulkan(const GPUDataLayout_Vulkan& inputLayout);
+	GPUPipelineLayoutInput_Vulkan(const GPUPipelineLayoutInput_Vulkan& other);
+	~GPUPipelineLayoutInput_Vulkan();
+
+	void operator=(const GPUPipelineLayoutInput_Vulkan& other);
 };
 
-enum InputLayoutType
+struct GPUPipelineLayoutPushConstant_Vulkan
 {
-	LAYOUT_TYPE_DYNAMIC,
-	LAYOUT_TYPE_MUTABLE,
-	LAYOUT_TYPE_STATIC
+	GPUDataLayout_Vulkan pushConstantLayout;
+	GPUPipelineStageFlags_Vulkan stage;
+	uint32_t hashID;
+
+	GPUPipelineLayoutPushConstant_Vulkan();
+	GPUPipelineLayoutPushConstant_Vulkan(const GPUDataLayout_Vulkan& pushConstantLayout, GPUPipelineStageFlags_Vulkan stage);
+	GPUPipelineLayoutPushConstant_Vulkan(const GPUPipelineLayoutPushConstant_Vulkan& other);
+	~GPUPipelineLayoutPushConstant_Vulkan();
+
+	void operator=(const GPUPipelineLayoutPushConstant_Vulkan& other);
 };
 
-class InputLayoutDescription
+class GPUPipelineLayoutInfo_Vulkan
 {
 public:
-	InputLayoutDescription();
-	~InputLayoutDescription();
+	GPUPipelineLayoutInfo_Vulkan();
+	GPUPipelineLayoutInfo_Vulkan(const std::vector<GPUPipelineLayoutInput_Vulkan>& inputs, const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& pushConstants);
+	GPUPipelineLayoutInfo_Vulkan(const GPUPipelineLayoutInfo_Vulkan& other);
+	~GPUPipelineLayoutInfo_Vulkan();
 
-	void AppendMember(uint32_t nameHash, InputLayoutMemberType type);
-	const std::vector<InputLayoutMemberDescription>& GetMembers();
+	void operator=(const GPUPipelineLayoutInfo_Vulkan& other);
+	bool operator==(const GPUPipelineLayoutInfo_Vulkan& other);
+	bool operator!=(const GPUPipelineLayoutInfo_Vulkan& other);
 
-private:
-	uint32_t nameHash;
-	std::vector<InputLayoutMemberDescription> _members;
-};
-
-class GPUPipelineInputs_Vulkan
-{
-public:
-	GPUPipelineInputs_Vulkan();
-	~GPUPipelineInputs_Vulkan();
-
-	void AddSSBODescription(const InputLayoutDescription& description);
-	void SetPushConstantDescription(const InputLayoutDescription& description);
+	const std::vector<GPUPipelineLayoutInput_Vulkan>& GetInputs() const;
+	const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& GetPushConstants() const;
+	uint32_t GetHashID() const;
 
 private:
-	std::vector<InputLayoutMemberDescription> _ssboDescriptions;
-	InputLayoutMemberDescription _pushConstantDescription;
-};
-
-// add param set that can be created from the above
-// grab static buffer references to static types
-// allocate mutable type pool
-// allocate dynamic type stack?
-	// - how would this work for object data? the object data buffer is technically static but the elements that exist in it are dynamic. make the buffer static but the push constant accessor dynamic?
-	// - i feel like the above would work. scene data is also static and would need to be accessed via id. the specific object index could be the dynamic part?
-
-class GPUPipelineParameterSet_Vulkan
-{
-public:
-
-
-private:
-
+	std::vector<GPUPipelineLayoutInput_Vulkan> _inputs;
+	std::vector<GPUPipelineLayoutPushConstant_Vulkan> _pushConstants;
+	uint32_t _hashID;
 };
 
 class GPUPipeline_Vulkan : public GPUPipeline
 {
 public:
 	GPUPipeline_Vulkan();
-	GPUPipeline_Vulkan(const PipelineInfo& pipelineInfo);
+	GPUPipeline_Vulkan(VkDevice device, VkPipeline pipeline, VkPipelineLayout layout, const GPUPipelineLayoutInfo_Vulkan& layoutInfo, uint32_t stateHashID);
+	GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept;
 	virtual ~GPUPipeline_Vulkan();
 
-	// create unique front facing pipeline parameter set to bind to this pipeline
-	// bind parameter set for use in draws?
-	// unbind parameter set for use in draws?
-	// other bind/unbind funcs for vertex and index data?
-	// draw using pipeline?
+	void operator=(GPUPipeline_Vulkan&& other) noexcept;
+	bool operator==(const GPUPipeline_Vulkan& other);
+	bool operator!=(const GPUPipeline_Vulkan& other);
+
+	VkPipeline GetPipeline() const;
+	VkPipelineLayout GetPipelineLayout() const;
+	const GPUPipelineLayoutInfo_Vulkan& GetPipelineLayoutInfo() const;
+	uint32_t GetStateHashID() const;
 
 private:
-	//VkPipeline _pipeline;
-	//GPUPipelineInterface_Vulkan _interface;
+	VkDevice _device;
+	VkPipeline _pipeline;
+	VkPipelineLayout _layout;
+	GPUPipelineLayoutInfo_Vulkan _layoutInfo;
+	uint32_t _stateHashID;
 };
 
 }

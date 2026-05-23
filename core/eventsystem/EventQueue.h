@@ -1,7 +1,7 @@
 #pragma once
 #include "EventTraits.h"
 #include "EventCallbackList.h"
-#include "../Utility.h"
+#include "../TypeTraits.h"
 #include <tuple>
 #include <queue>
 

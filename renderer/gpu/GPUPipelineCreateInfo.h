@@ -1,4 +1,7 @@
 #pragma once
+#include "GPUImageFormats.h"
+#include "Hash.h"
+#include <string>
 
 namespace CSERenderer
 {
@@ -15,8 +18,7 @@ enum CompareOp
 
 struct PipelineShaderInfo
 {
-	const char* shaderCode;
-	uint32_t shaderCodeLength;
+	std::string shaderCode;
 	enum ShaderType
 	{
 		SHADER_TYPE_VERTEX,
@@ -34,7 +36,7 @@ struct PipelineViewportInfo
 		uint32_t minDepth;
 		uint32_t x;
 		uint32_t y;
-	};
+	}viewport;
 };
 
 struct PipelineRasterizationInfo
@@ -48,7 +50,7 @@ struct PipelineRasterizationInfo
 	} cullMode;
 	enum FrontFace
 	{
-		FRONT_FACE_COUNTERCLOCKWISE,
+		FRONT_FACE_COUNTER_CLOCKWISE,
 		FRONT_FACE_CLOCKWISE
 	} frontFace;
 };
@@ -64,6 +66,7 @@ struct PipelineDepthStencilInfo
 	bool depthWriteEnabled;
 	CompareOp depthCompareOp;
 
+	bool stencilTestEnabled;
 	struct StencilOpState
 	{
 		enum StencilOp
@@ -86,14 +89,20 @@ struct PipelineDepthStencilInfo
 
 struct PipelineColorBlendInfo
 {
+	bool blendEnabled;
+
 	enum BlendFactor
 	{
 		BLEND_FACTOR_ZERO,
 		BLEND_FACTOR_ONE,
-		BLEND_FACTOR_SRC,
-		BLEND_FACTOR_SRC_INVERT,
-		BLEND_FACTOR_DST,
-		BLEND_FACTOR_DST_INVERT
+		BLEND_FACTOR_SRC_COLOR,
+		BLEND_FACTOR_SRC_COLOR_INVERT,
+		BLEND_FACTOR_DST_COLOR,
+		BLEND_FACTOR_DST_COLOR_INVERT,
+		BLEND_FACTOR_SRC_ALPHA,
+		BLEND_FACTOR_SRC_ALPHA_INVERT,
+		BLEND_FACTOR_DST_ALPHA,
+		BLEND_FACTOR_DST_ALPHA_INVERT
 	};
 	enum BlendOp
 	{
@@ -112,9 +121,10 @@ struct PipelineColorBlendInfo
 
 struct PipelineAttachmentInfo
 {
+	ImageFormat* colorAttachmentFormats;
 	uint8_t colorAttachmentCount;
-	bool depthAttachment;
-	bool stencilAttachment;
+	ImageFormat depthAttachmentFormat;
+	ImageFormat stencilAttachmentFormat;
 };
 
 struct PipelineDynamicStateInfo
@@ -138,5 +148,39 @@ struct PipelineInfo
 	PipelineAttachmentInfo* attachmentInfo;
 	PipelineDynamicStateInfo* dynamicStateInfo;
 };
+
+}
+
+namespace CSECore
+{
+
+template<>
+static uint32_t FNVHash<CSERenderer::PipelineInfo>(const CSERenderer::PipelineInfo& info)
+{
+	uint32_t hash = 0;
+
+	for (int i = 0; i < info.shaderCount; i++)
+	{
+		hash ^= FNVHash(info.shaders[i].shaderCode);
+		hash ^= FNVHash(info.shaders[i].shaderType);
+	}
+
+	hash ^= FNVHash(info.viewportInfo);
+	hash ^= FNVHash(info.rasterizationInfo);
+	hash ^= FNVHash(info.multisampleInfo);
+	hash ^= FNVHash(info.depthStencilInfo);
+	hash ^= FNVHash(info.colorBlendInfo);
+
+	for (int i = 0; i < info.attachmentInfo->colorAttachmentCount; i++)
+	{
+		hash ^= FNVHash(info.attachmentInfo->colorAttachmentFormats[i]);
+	}
+	hash ^= FNVHash(info.attachmentInfo->depthAttachmentFormat);
+	hash ^= FNVHash(info.attachmentInfo->stencilAttachmentFormat);
+
+	hash ^= FNVHash(info.dynamicStateInfo);
+
+	return hash;
+}
 
 }

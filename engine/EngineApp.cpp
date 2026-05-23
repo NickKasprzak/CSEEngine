@@ -22,6 +22,7 @@ static void LogKeyInput(CSEApplication::KeyType keyType, CSEApplication::KeyPres
 
 	CSE_LOGI(keyString);
 }
+
 class InputDumper
 {
 public:
@@ -80,6 +81,8 @@ void EngineApp::Initialize(std::string name)
 	CSECore::Any<64> winInfoApp = GetWindow()->GetPlatformWindowInfo();
 	CSECore::Any<64> winInfoRenderer = PlatformWindowInfo_AppToRenderer(winInfoApp);
 	_renderContext.GetBackend()->SetTargetWindow(winInfoRenderer);
+
+	PostInitialize();
 }
 
 void EngineApp::Run()
@@ -97,9 +100,15 @@ void EngineApp::Run()
 
 void EngineApp::Dispose()
 {
+	PreDispose();
 
 	_renderContext.Dispose();
 	App::Dispose();
+}
+
+CSERenderer::RenderContext& EngineApp::GetRenderContext()
+{
+	return _renderContext;
 }
 
 }

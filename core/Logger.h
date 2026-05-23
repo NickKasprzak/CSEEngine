@@ -10,7 +10,6 @@ void LogInfo(std::stringstream message);
 void LogWarning(std::stringstream message);
 void LogError(std::stringstream message);
 
-// Just have this accept a file handle to whatever file should be logged to
 void LogSetOutputFile(std::string filepath);
 void LogFlush();
 

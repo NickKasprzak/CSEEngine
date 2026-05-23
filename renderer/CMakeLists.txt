@@ -38,6 +38,8 @@ if(USE_VULKAN)
 
 	set(VULKAN_SOURCES
 		gpu/vulkan/Config_Vulkan.h
+		gpu/vulkan/DescriptorSetManager_Vulkan.h
+		gpu/vulkan/DescriptorSetManager_Vulkan.cpp
 		gpu/vulkan/GPUDevice_Vulkan.h
 		gpu/vulkan/GPUDevice_Vulkan.cpp
 		gpu/vulkan/GPUBackend_Vulkan.h
@@ -46,8 +48,18 @@ if(USE_VULKAN)
 		gpu/vulkan/GPUBuffer_Vulkan.cpp
 		gpu/vulkan/GPUImage_Vulkan.h
 		gpu/vulkan/GPUImage_Vulkan.cpp
-		#gpu/vulkan/GPUPipeline_Vulkan.h
-		#gpu/vulkan/GPUPipeline_Vulkan.cpp
+		gpu/vulkan/GPUPipeline_Vulkan.h
+		gpu/vulkan/GPUPipeline_Vulkan.cpp
+		gpu/vulkan/GPUPipelineBuilder_Vulkan.h
+		gpu/vulkan/GPUPipelineBuilder_Vulkan.cpp
+		gpu/vulkan/GPUPipelineManager_Vulkan.h
+		gpu/vulkan/GPUPipelineManager_Vulkan.cpp
+		gpu/vulkan/GPUDataLayout_Vulkan.h
+		gpu/vulkan/GPUDataLayout_Vulkan.cpp
+		gpu/vulkan/ShaderProcessor_Vulkan.h
+		gpu/vulkan/ShaderProcessor_Vulkan.cpp
+		gpu/vulkan/Utils_Vulkan.h
+		gpu/vulkan/Vertex_Vulkan.h
 	)
 
 	set(VULKAN_THIRD_PARTY_SOURCES

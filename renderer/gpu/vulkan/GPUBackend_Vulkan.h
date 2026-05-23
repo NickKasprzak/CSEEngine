@@ -2,6 +2,8 @@
 #include "../GPUBackend.h"
 #include "GPUDevice_Vulkan.h"
 #include "Compositor_Vulkan.h"
+#include "DescriptorSetManager_Vulkan.h"
+#include "GPUPipelineManager_Vulkan.h"
 
 namespace CSERenderer
 {
@@ -24,9 +26,11 @@ public:
 	virtual void BufferWrite(CSECore::Ref<GPUBuffer> buffer /* args */) override;
 	virtual void BufferCopy(CSECore::Ref<GPUBuffer> buffer /* args */) override;
 
-	virtual CSECore::Ref<GPUImage> CreateImage(ImageUsageFlags usage, uint32_t width, uint32_t height) override;
+	virtual CSECore::Ref<GPUImage> CreateImage(ImageUsageFlags usage, ImageFormat format, uint32_t width, uint32_t height) override;
 	virtual void SetImageSampler(CSECore::Ref<GPUImage> image, SamplerFilterMode filter, SamplerAddressMode addressMode) override;
 	virtual void ImageCopy(CSECore::Ref<GPUImage> image /* args */) override;
+
+	virtual CSECore::Ref<GPUPipeline> CreatePipeline(const PipelineInfo& pipelineInfo) override;
 
 	virtual void SetTargetWindow(const CSECore::Any<64>& windowInfo) override;
 	virtual void UpdateWindowSurfaceSize(uint16_t width, uint16_t height) override;
@@ -37,6 +41,8 @@ private:
 	vkb::Swapchain _swapchain;
 
 	Compositor_Vulkan _compositor;
+	DescriptorSetManager_Vulkan _descriptorSetManager;
+	GPUPipelineManager_Vulkan _pipelineManager;
 };
 
 typedef GPUBackend_Vulkan GPUBackend_Impl;

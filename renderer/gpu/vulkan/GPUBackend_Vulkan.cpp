@@ -1,6 +1,8 @@
 #include "GPUBackend_Vulkan.h"
 #include "GPUBuffer_Vulkan.h"
 #include "GPUImage_Vulkan.h"
+#include "GPUPipeline_Vulkan.h"
+#include "Utils_Vulkan.h"
 #include "../../utility/PlatformWindowInfo_Renderer.h"
 #include "Expected.h"
 #include "Assert.h"
@@ -23,13 +25,12 @@ VkBufferUsageFlags BufferUsageToVulkanUsageFlags(BufferUsageFlags usage);
 VmaAllocationCreateFlags BufferUsageToVmaFlags(BufferUsageFlags usage);
 
 VkImageUsageFlags ImageUsageToVulkanUsageFlags(ImageUsageFlags usage);
-VkFormat ImageUsageToVulkanFormat(ImageUsageFlags usage);
 VmaAllocationCreateFlags ImageUsageToVmaFlags(ImageUsageFlags usage);
 VkFilter FilterToVkFilter(SamplerFilterMode filterMode);
 VkSamplerAddressMode AddressModeToVkAddressMode(SamplerAddressMode addressMode);
 
 GPUBackend_Vulkan::GPUBackend_Vulkan()
-	: _device(), _windowSurface(), _swapchain(), _compositor()
+	: _device(), _windowSurface(), _swapchain(), _compositor(), _descriptorSetManager(), _pipelineManager()
 {
 
 }
@@ -42,12 +43,17 @@ GPUBackend_Vulkan::~GPUBackend_Vulkan()
 void GPUBackend_Vulkan::Initialize()
 {
 	_device.Initialize();
+	_descriptorSetManager.Initialize(_device.GetVkDevice());
+	_pipelineManager.Initialize(_device.GetVkDevice());
 }
 
 void GPUBackend_Vulkan::Dispose()
 {
 	vkb::destroy_swapchain(_swapchain);
 	vkDestroySurfaceKHR(_device.GetVkInstance(), _windowSurface, nullptr);
+
+	_pipelineManager.Dispose();
+	_descriptorSetManager.Dispose();
 	_device.Dispose();
 }
 
@@ -59,23 +65,10 @@ CSECore::Ref<GPUBuffer> GPUBackend_Vulkan::CreateBuffer(BufferUsageFlags usage, 
 	bufferParams.size = size;
 	uint32_t queueFamily = _device.GetGraphicsQueueFamilyIndex();
 
-	/*
-	* Replace with pooled allocation of GPUBuffer_Vulkan
-	* later. This will require Ref to
-	* support a deleter callback function.
-	*/
-	GPUBuffer_Vulkan* buffer = new GPUBuffer_Vulkan(&bufferParams, queueFamily, _device.GetVMAAllocator());
-	if (buffer->GetHandle() == nullptr)
-	{
-		return CSECore::Ref<GPUBuffer>(nullptr);
-	}
+	CSECore::Ref<GPUBuffer> bufferRef = CreateBuffer_Vulkan(&bufferParams, queueFamily, _device.GetVMAAllocator());
+	CSE_ASSERT(bufferRef.GetRawPointer() != nullptr, "Buffer creation failed.");
 
-	if (usage & BUFFER_USAGE_MAPPED)
-	{
-		buffer->MapBuffer();
-	}
-
-	return CSECore::Ref<GPUBuffer>(buffer);
+	return bufferRef;
 }
 
 void GPUBackend_Vulkan::BufferWrite(CSECore::Ref<GPUBuffer> buffer)
@@ -94,11 +87,11 @@ void GPUBackend_Vulkan::BufferCopy(CSECore::Ref<GPUBuffer> buffer)
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off buffer copy request to compositor.");
 }
 
-CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(ImageUsageFlags usage, uint32_t width, uint32_t height)
+CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(ImageUsageFlags usage, ImageFormat format, uint32_t width, uint32_t height)
 {
 	VulkanImageInfo imageParams{};
 	imageParams.usage = ImageUsageToVulkanUsageFlags(usage);
-	imageParams.format = ImageUsageToVulkanFormat(usage);
+	imageParams.format = ImageFormatToVkFormat(format);
 	imageParams.extent.width = width;
 	imageParams.extent.height = height;
 	imageParams.extent.depth = 1;
@@ -109,12 +102,10 @@ CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(ImageUsageFlags usage, uin
 	imageParams.device = _device.GetVkDevice();
 	uint32_t queueFamily = _device.GetGraphicsQueueFamilyIndex();
 
-	/*
-	* Replace with pooled allocation of GPUImage_Vulkan
-	* later. This will require Ref to
-	* support a deleter callback function.
-	*/
-	return CSECore::Ref<GPUImage>(new GPUImage_Vulkan(&imageParams, queueFamily, _device.GetVMAAllocator()));
+	CSECore::Ref<GPUImage> imageRef = CreateImage_Vulkan(&imageParams, queueFamily, _device.GetVMAAllocator());
+	CSE_ASSERT(imageRef.GetRawPointer() != nullptr, "Image creation failed.");
+
+	return imageRef;
 }
 
 void GPUBackend_Vulkan::SetImageSampler(CSECore::Ref<GPUImage> image, SamplerFilterMode filter, SamplerAddressMode addressMode)
@@ -133,6 +124,11 @@ void GPUBackend_Vulkan::ImageCopy(CSECore::Ref<GPUImage> image)
 	CSE_ASSERT(vkImage, "Couldn't copy to image as the given image handle is null.");
 
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off image copy request to compositor.");
+}
+
+CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreatePipeline(const PipelineInfo& pipelineInfo)
+{
+	return _pipelineManager.CreateGraphicsPipeline(pipelineInfo, _descriptorSetManager.GetDescriptorSetLayout());
 }
 
 void GPUBackend_Vulkan::SetTargetWindow(const CSECore::Any<64>& windowInfo)
@@ -303,18 +299,6 @@ VkImageUsageFlags ImageUsageToVulkanUsageFlags(ImageUsageFlags usage)
 	}
 
 	return flags;
-}
-
-VkFormat ImageUsageToVulkanFormat(ImageUsageFlags usage)
-{
-	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-
-	if (usage & IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT)
-	{
-		format = VK_FORMAT_D32_SFLOAT_S8_UINT;
-	}
-	
-	return format;
 }
 
 VmaAllocationCreateFlags ImageUsageToVmaFlags(ImageUsageFlags usage)

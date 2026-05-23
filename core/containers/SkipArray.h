@@ -29,17 +29,35 @@ private:
 				int32_t nextIndex;
 				int32_t prevIndex;
 			} inactive;
+
+			~EntryUnion() {}
 		} entryUnion;
 
 		bool isActive;
 
-		Entry()
+		~Entry() {}
+	};
+
+	class EntryMemoryBlock
+	{
+	public:
+		EntryMemoryBlock();
+		~EntryMemoryBlock()
 		{
-			entryUnion.inactive.blockSize = 0;
-			entryUnion.inactive.nextIndex = NULL_INDEX;
-			entryUnion.inactive.prevIndex = NULL_INDEX;
-			isActive = false;
+			if (HasAllocation())
+			{
+				DeallocateMemory();
+			}
 		}
+
+		void AllocateMemory();
+		void DeallocateMemory();
+		bool HasAllocation();
+
+		Entry& operator[](uint32_t index);
+
+	private:
+		void* _memory;
 	};
 
 public:
@@ -69,10 +87,12 @@ public:
 	SkipArray();
 	~SkipArray();
 
-	int Add(const Type& data);
+	int32_t Add(const Type& data);
+	int32_t Add(Type&& data);
 	void Remove(Type* data);
 	void Remove(const Type& data);
 	void RemoveAtIndex(int32_t index);
+	void Clear();
 
 	Type* GetAtIndex(int32_t index);
 
@@ -80,7 +100,7 @@ public:
 	Iterator End();
 
 private:
-	Entry* _memory;
+	EntryMemoryBlock _memory;
 	int32_t _activeListHead;
 	int32_t _activeListTail;
 	int32_t _freeListHead;
@@ -97,11 +117,14 @@ private:
 	void _mergeFreeListBlocks(int32_t expandedIndex, int32_t absorbedIndex);
 	void _growFreeListBlock(int32_t index, int32_t range);
 	void _shrinkFreeListBlock(int32_t index, int32_t range);
+
+	int32_t _addImpl(const Type& data, std::true_type);
+	int32_t _addImpl(const Type& data, std::false_type);
 };
 
 template<typename Type, size_t BlockElementCount>
 SkipArray<Type, BlockElementCount>::SkipArray()
-	: _memory(nullptr), 
+	: _memory(), 
 	_activeListHead(NULL_INDEX), 
 	_activeListTail(NULL_INDEX), 
 	_freeListHead(0),
@@ -113,7 +136,7 @@ SkipArray<Type, BlockElementCount>::SkipArray()
 template<typename Type, size_t BlockElementCount>
 SkipArray<Type, BlockElementCount>::~SkipArray()
 {
-	if (_memory == nullptr) { return; }
+	if (!_memory.HasAllocation()) { return; }
 
 	if (_activeListHead != NULL_INDEX)
 	{
@@ -128,13 +151,23 @@ SkipArray<Type, BlockElementCount>::~SkipArray()
 		}
 	}
 
-	delete _memory;
+	_memory.DeallocateMemory();
+	_activeListHead = NULL_INDEX;
+	_activeListTail = NULL_INDEX;
+	_freeListHead = 0;
+	_activeCount = 0;
 }
 
 template<typename Type, size_t BlockElementCount>
 int32_t SkipArray<Type, BlockElementCount>::Add(const Type& data)
 {
-	if (_memory == nullptr)
+	return _addImpl(data, std::is_copy_assignable<Type>::type{});
+}
+
+template<typename Type, size_t BlockElementCount>
+int32_t SkipArray<Type, BlockElementCount>::Add(Type&& data)
+{
+	if (!_memory.HasAllocation())
 	{
 		_allocateMemory();
 	}
@@ -145,19 +178,20 @@ int32_t SkipArray<Type, BlockElementCount>::Add(const Type& data)
 		return -1;
 	}
 
-	_memory[entryIndex].entryUnion.active.data = data;
+	Type* entryData = new (&_memory[entryIndex].entryUnion.active.data) Type();
+	*entryData = std::move(data);
 	return entryIndex;
 }
 
 template<typename Type, size_t BlockElementCount>
 void SkipArray<Type, BlockElementCount>::Remove(Type* data)
 {
-	if (_memory == nullptr)
+	if (!_memory.HasAllocation())
 	{
 		return;
 	}
 
-	uintptr_t memUIntptr = reinterpret_cast<uintptr_t>(_memory);
+	uintptr_t memUIntptr = reinterpret_cast<uintptr_t>(&_memory[0]);
 	uintptr_t dataUIntptr = reinterpret_cast<uintptr_t>(data);
 	CSE_ASSERT(memUIntptr <= dataUIntptr && dataUIntptr < memUIntptr + (sizeof(Entry) * BlockElementCount), "Given address is out of bounds");
 	CSE_ASSERT(dataUIntptr % sizeof(Entry) == 0, "Given address does not align with an Entry.");
@@ -169,7 +203,7 @@ void SkipArray<Type, BlockElementCount>::Remove(Type* data)
 template<typename Type, size_t BlockElementCount>
 void SkipArray<Type, BlockElementCount>::Remove(const Type& data)
 {
-	if (_memory == nullptr)
+	if (!_memory.HasAllocation())
 	{
 		return;
 	}
@@ -196,6 +230,12 @@ void SkipArray<Type, BlockElementCount>::RemoveAtIndex(int32_t index)
 }
 
 template<typename Type, size_t BlockElementCount>
+void SkipArray<Type, BlockElementCount>::Clear()
+{
+	SkipArray<Type, BlockElementCount>::~SkipArray<Type, BlockElementCount>();
+}
+
+template<typename Type, size_t BlockElementCount>
 Type* SkipArray<Type, BlockElementCount>::GetAtIndex(int32_t index)
 {
 	CSE_ASSERT(index >= 0 && index < BlockElementCount, "Given index for access is out of bounds.");
@@ -211,24 +251,24 @@ Type* SkipArray<Type, BlockElementCount>::GetAtIndex(int32_t index)
 template<typename Type, size_t BlockElementCount>
 typename SkipArray<Type, BlockElementCount>::Iterator SkipArray<Type, BlockElementCount>::Begin()
 {
-	return Iterator(_memory, _activeListHead);
+	return Iterator(&_memory[0], _activeListHead);
 }
 
 template<typename Type, size_t BlockElementCount>
 typename SkipArray<Type, BlockElementCount>::Iterator SkipArray<Type, BlockElementCount>::End()
 {
-	return Iterator(_memory, NULL_INDEX);
+	return Iterator(&_memory[0], NULL_INDEX);
 }
 
 template<typename Type, size_t BlockElementCount>
 void SkipArray<Type, BlockElementCount>::_allocateMemory()
 {
-	if (_memory != nullptr)
+	if (_memory.HasAllocation())
 	{
 		SkipArray::~SkipArray();
 	}
 
-	_memory = new Entry[BlockElementCount];
+	_memory.AllocateMemory();
 	_activeListHead = NULL_INDEX;
 	_freeListHead = 0;
 	_activeCount = 0;
@@ -486,8 +526,8 @@ void SkipArray<Type, BlockElementCount>::_mergeFreeListBlocks(int32_t index1, in
 	* Pick whichever of the two indices occurs
 	* earlier in the array to expand.
 	*/
-	int32_t expandedIndex = std::min(index1, index2);
-	int32_t absorbedIndex = std::max(index1, index2);
+	int32_t expandedIndex = (std::min)(index1, index2);
+	int32_t absorbedIndex = (std::max)(index1, index2);
 
 	/*
 	* Patch up free list by connecting the
@@ -618,6 +658,31 @@ void SkipArray<Type, BlockElementCount>::_shrinkFreeListBlock(int32_t index, int
 	}
 }
 
+template<typename Type, size_t BlockElementCount>
+int32_t SkipArray<Type, BlockElementCount>::_addImpl(const Type& data, std::true_type)
+{
+	if (!_memory.HasAllocation())
+	{
+		_allocateMemory();
+	}
+
+	int32_t entryIndex = _allocateFromFreeList();
+	if (entryIndex == NULL_INDEX)
+	{
+		return -1;
+	}
+
+	Type* entryData = new (&_memory[entryIndex].entryUnion.active.data) Type();
+	*entryData = data;
+	return entryIndex;
+}
+
+template<typename Type, size_t BlockElementCount>
+int32_t SkipArray<Type, BlockElementCount>::_addImpl(const Type& data, std::false_type)
+{
+	static_assert(std::is_copy_constructible_v<Type>, "Type given must be copy assignable to be used in copy Add.");
+	return -1;
+}
 
 template<typename Type, size_t BlockElementCount>
 SkipArray<Type, BlockElementCount>::Iterator::Iterator(Entry* src, int32_t startIndex)
@@ -666,7 +731,7 @@ typename SkipArray<Type, BlockElementCount>::Iterator& SkipArray<Type, BlockElem
 		return *this;
 	}
 
-	_index += src[_index].entryUnion.active.skipPrev;
+	_index += _src[_index].entryUnion.active.skipPrev;
 	return *this;
 }
 
@@ -686,6 +751,44 @@ template<typename Type, size_t BlockElementCount>
 Type* SkipArray<Type, BlockElementCount>::Iterator::GetPointer()
 {
 	return &_src[_index].entryUnion.active.data;
+}
+
+template<typename Type, size_t BlockElementCount>
+SkipArray<Type, BlockElementCount>::EntryMemoryBlock::EntryMemoryBlock()
+	: _memory(nullptr)
+{
+
+}
+
+
+
+template<typename Type, size_t BlockElementCount>
+void SkipArray<Type, BlockElementCount>::EntryMemoryBlock::AllocateMemory()
+{
+	_memory = malloc(sizeof(SkipArray::Entry) * BlockElementCount);
+}
+
+template<typename Type, size_t BlockElementCount>
+void SkipArray<Type, BlockElementCount>::EntryMemoryBlock::DeallocateMemory()
+{
+	if (_memory != nullptr)
+	{
+		free(_memory);
+		_memory = nullptr;
+	}
+}
+
+template<typename Type, size_t BlockElementCount>
+bool SkipArray<Type, BlockElementCount>::EntryMemoryBlock::HasAllocation()
+{
+	return _memory != nullptr;
+}
+
+template<typename Type, size_t BlockElementCount>
+typename SkipArray<Type, BlockElementCount>::Entry& SkipArray<Type, BlockElementCount>::EntryMemoryBlock::operator[](uint32_t index)
+{
+	CSE_ASSERT(index < BlockElementCount, "Index given is out of range.");
+	return reinterpret_cast<Entry*>(_memory)[index];
 }
 
 }

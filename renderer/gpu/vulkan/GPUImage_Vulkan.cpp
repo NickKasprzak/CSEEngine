@@ -9,76 +9,20 @@ VkImageViewType ImageArrayLayersToViewType(uint32_t arrayLayers);
 VkImageAspectFlags ImageUsageToImageAspectFlags(VkImageUsageFlags usageFlags);
 
 GPUImage_Vulkan::GPUImage_Vulkan()
-	: _image(VK_NULL_HANDLE), _imageView(VK_NULL_HANDLE), _info(), _allocator(VK_NULL_HANDLE), _allocation(VK_NULL_HANDLE), _sampler(VK_NULL_HANDLE)
+	: _image(VK_NULL_HANDLE), _imageView(VK_NULL_HANDLE), _info(), _allocator(VK_NULL_HANDLE), _allocation(VK_NULL_HANDLE), _ID(UINT32_MAX), _sampler(VK_NULL_HANDLE)
 {
 	
 }
 
-GPUImage_Vulkan::GPUImage_Vulkan(VulkanImageInfo* params, uint32_t queueFamily, VmaAllocator allocator)
-	: _image(VK_NULL_HANDLE), _imageView(VK_NULL_HANDLE), _info(), _allocator(VK_NULL_HANDLE), _allocation(VK_NULL_HANDLE), _sampler(VK_NULL_HANDLE)
+GPUImage_Vulkan::GPUImage_Vulkan(VkImage image,
+	VkImageView imageView,
+	VulkanImageInfo& imageInfo,
+	VmaAllocator allocator,
+	VmaAllocation allocation,
+	uint32_t ID)
+	: _image(image), _imageView(imageView), _info(imageInfo), _allocator(allocator), _allocation(allocation), _ID(ID), _sampler(VK_NULL_HANDLE)
 {
-	VkImageCreateInfo imageCreateInfo{};
-	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageCreateInfo.usage = params->usage;
-	imageCreateInfo.format = params->format;
-	imageCreateInfo.extent = params->extent;
-	imageCreateInfo.mipLevels = params->mipLevels;
-	imageCreateInfo.arrayLayers = params->arrayLayers;
-	imageCreateInfo.samples = params->samples;
-	imageCreateInfo.flags = params->createFlags;
-	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-	VmaAllocationCreateInfo allocCreateInfo{};
-	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	allocCreateInfo.flags = params->alloc;
-
-	VkImage image;
-	VmaAllocation allocation;
-	VkResult imageResult = vmaCreateImage(allocator, &imageCreateInfo, &allocCreateInfo, &image, &allocation, nullptr);
-	if (imageResult != VK_SUCCESS)
-	{
-		switch (imageResult)
-		{
-		default:
-			CSE_LOGE("Failed to create image. Reason: Unknown error.");
-			return;
-		}
-	}
-
-	VkImageViewCreateInfo imageViewCreateInfo{};
-	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	imageViewCreateInfo.image = image;
-	imageViewCreateInfo.viewType = ImageArrayLayersToViewType(params->arrayLayers);
-	imageViewCreateInfo.format = params->format;
-	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
-	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
-	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
-	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
-	imageViewCreateInfo.subresourceRange.aspectMask = ImageUsageToImageAspectFlags(params->usage);
-	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-	imageViewCreateInfo.subresourceRange.layerCount = params->arrayLayers;
-	imageViewCreateInfo.subresourceRange.baseMipLevel = 1;
-	imageViewCreateInfo.subresourceRange.levelCount = params->mipLevels;
-
-	VkImageView imageView{};
-	VkResult imageViewResult = vkCreateImageView(params->device, & imageViewCreateInfo, nullptr, & _imageView);
-	if (imageViewResult != VK_SUCCESS)
-	{
-		switch (imageViewResult)
-		{
-		default:
-			CSE_LOGE("Failed to create image view. Reason: Unknown error.");
-			return;
-		}
-	}
-
-	_image = image;
-	_imageView = imageView;
-	_info = *params;
-	_allocator = allocator;
-	_allocation = allocation;
+	
 }
 
 GPUImage_Vulkan::~GPUImage_Vulkan()
@@ -113,6 +57,11 @@ VkImageUsageFlags GPUImage_Vulkan::GetImageUsage()
 VkImageViewType GPUImage_Vulkan::GetImageViewType()
 {
 	return ImageArrayLayersToViewType(_info.arrayLayers);
+}
+
+uint32_t GPUImage_Vulkan::GetID()
+{
+	return _ID;
 }
 
 void GPUImage_Vulkan::SetSampler(VkFilter filter, VkSamplerAddressMode addressMode)
@@ -188,6 +137,72 @@ VkImageAspectFlags ImageUsageToImageAspectFlags(VkImageUsageFlags usageFlags)
 	}
 
 	return flags;
+}
+
+CSECore::Ref<GPUImage> CreateImage_Vulkan(VulkanImageInfo* params, uint32_t queueFamily, VmaAllocator allocator)
+{
+	VkImageCreateInfo imageCreateInfo{};
+	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageCreateInfo.usage = params->usage;
+	imageCreateInfo.format = params->format;
+	imageCreateInfo.extent = params->extent;
+	imageCreateInfo.mipLevels = params->mipLevels;
+	imageCreateInfo.arrayLayers = params->arrayLayers;
+	imageCreateInfo.samples = params->samples;
+	imageCreateInfo.flags = params->createFlags;
+	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	VmaAllocationCreateInfo allocCreateInfo{};
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocCreateInfo.flags = params->alloc;
+
+	VkImage image;
+	VmaAllocation allocation;
+	VkResult imageResult = vmaCreateImage(allocator, &imageCreateInfo, &allocCreateInfo, &image, &allocation, nullptr);
+	if (imageResult != VK_SUCCESS)
+	{
+		switch (imageResult)
+		{
+		default:
+			CSE_LOGE("Failed to create image. Reason: Unknown error.");
+		}
+		return CSECore::MakeEmptyRef<GPUImage>();
+	}
+
+	VkImageViewCreateInfo imageViewCreateInfo{};
+	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewCreateInfo.image = image;
+	imageViewCreateInfo.viewType = ImageArrayLayersToViewType(params->arrayLayers);
+	imageViewCreateInfo.format = params->format;
+	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+	imageViewCreateInfo.subresourceRange.aspectMask = ImageUsageToImageAspectFlags(params->usage);
+	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewCreateInfo.subresourceRange.layerCount = params->arrayLayers;
+	imageViewCreateInfo.subresourceRange.baseMipLevel = 1;
+	imageViewCreateInfo.subresourceRange.levelCount = params->mipLevels;
+
+	VkImageView imageView{};
+	VkResult imageViewResult = vkCreateImageView(params->device, &imageViewCreateInfo, nullptr, &imageView);
+	if (imageViewResult != VK_SUCCESS)
+	{
+		switch (imageViewResult)
+		{
+		default:
+			CSE_LOGE("Failed to create image view. Reason: Unknown error.");
+		}
+		return CSECore::MakeEmptyRef<GPUImage>();
+	}
+
+	static uint32_t idCounter = 0;
+	uint32_t id = idCounter;
+	++idCounter;
+
+	return CSECore::MakeOwningRef<GPUImage>(new GPUImage_Vulkan(image, imageView, *params, allocator, allocation, id));
 }
 
 }

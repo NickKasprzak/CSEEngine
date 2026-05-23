@@ -15,10 +15,10 @@ public:
 	void Initialize();
 	void Dispose();
 
-	const VkInstance GetVkInstance();
-	const VkPhysicalDevice GetVkPhysicalDevice();
-	const VkDevice GetVkDevice();
-	const VmaAllocator GetVMAAllocator();
+	VkInstance GetVkInstance();
+	VkPhysicalDevice GetVkPhysicalDevice();
+	VkDevice GetVkDevice();
+	VmaAllocator GetVMAAllocator();
 
 	uint32_t GetGraphicsQueueFamilyIndex();
 	uint32_t GetTransferQueueFamilyIndex();

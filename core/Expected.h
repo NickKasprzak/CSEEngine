@@ -1,6 +1,6 @@
 #pragma once
 #include "Any.h"
-#include "Assert.h"
+#include "CSEAssert.h"
 #include <algorithm>
 
 namespace CSECore
@@ -74,6 +74,13 @@ public:
 	{
 		CSE_ASSERT(_hasExpected, "Attempted to get an expected value from an Expected that doesn't have one.");
 		return _value.CastTo<ExpectedType>();
+	}
+
+	ExpectedType* GetExpectedPtr()
+	{
+		CSE_ASSERT(_hasExpected, "Attempted to get an expected value from an Expected that doesn't have one.");
+		ExpectedType* ptr = _value.CastToPtr<ExpectedType>();
+		return ptr;
 	}
 
 	UnexpectedType GetUnexpected() const

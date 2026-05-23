@@ -5,14 +5,16 @@ project(CSECore
 
 set(CMAKE_CXX_STANDARD 14)
 
-set(SOURCES
-	Logger.h
-	Logger.cpp
+set(SOURCES	
 	Any.h
 	CSEAssert.h
 	CSEAssert.cpp
 	Expected.h
-	Utility.h
+	Hash.h
+	Logger.h
+	Logger.cpp
+	Optional.h
+	TypeTraits.h
 
 	filesystem/FileSystem.h
 	filesystem/FileSystem.cpp
