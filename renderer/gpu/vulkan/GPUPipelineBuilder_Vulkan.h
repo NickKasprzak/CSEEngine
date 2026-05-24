@@ -66,7 +66,10 @@ private:
 	VkDevice _device;
 
 	ShaderInfo _shaderInfo[2];
-	ShaderLayoutInfo _layoutInfo{};
+	std::vector<GPUPipelineLayoutInput_Vulkan> _layoutInputs;
+	std::vector<GPUPipelineLayoutPushConstant_Vulkan> _layoutPushConstants;
+	GPUPipelineLayoutAttachments_Vulkan _layoutAttachments;
+	DescriptorSetLayoutInfo _descriptorSetLayoutInfo;
 	VkPipelineLayout _layout;
 	ViewportInfo _viewportInfo;
 	VkPipelineRasterizationStateCreateInfo _rasterizationInfo;

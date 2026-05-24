@@ -12,12 +12,11 @@ GPUBuffer_Vulkan::GPUBuffer_Vulkan()
 }
 
 GPUBuffer_Vulkan::GPUBuffer_Vulkan(VkBuffer buffer,
-	GPUBufferView_Vulkan bufferView,
 	VulkanBufferInfo& info,
 	VmaAllocator allocator,
 	VmaAllocation allocation,
 	uint32_t ID)
-	: _buffer(buffer), _bufferView(bufferView), _info(info), _allocator(allocator), _allocation(allocation), _ID(ID), _mapping(nullptr)
+	: _buffer(buffer), _info(info), _allocator(allocator), _allocation(allocation), _ID(ID), _mapping(nullptr)
 {
 	
 }
@@ -104,14 +103,12 @@ CSECore::Ref<GPUBuffer> CreateBuffer_Vulkan(VulkanBufferInfo* params, uint32_t q
 		return CSECore::MakeEmptyRef<GPUBuffer>();
 	}
 
-	GPUBufferView_Vulkan bufferView;
-
 
 	static uint32_t idCounter = 0;
 	uint32_t id = idCounter;
 	++idCounter;
 
-	return CSECore::MakeOwningRef<GPUBuffer>(new GPUBuffer_Vulkan(buffer, bufferView, *params, allocator, allocation, id));
+	return CSECore::MakeOwningRef<GPUBuffer>(new GPUBuffer_Vulkan(buffer, *params, allocator, allocation, id));
 }
 
 }

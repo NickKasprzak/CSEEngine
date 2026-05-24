@@ -1,5 +1,6 @@
 #pragma once
 #include "../GPUBuffer.h"
+#include "../GPUDataLayout.h"
 #include "refcount/Ref.h"
 #include "volk.h"
 #include "vk_mem_alloc.h"
@@ -8,6 +9,12 @@
 namespace CSERenderer
 {
 
+/*
+* decide whether or not data layout should
+* be built into the buffer or part of some
+* other class/system/container/etc.
+*/
+
 struct VulkanBufferInfo
 {
 	VkBufferUsageFlags usage;
@@ -15,20 +22,11 @@ struct VulkanBufferInfo
 	VmaAllocationCreateFlags alloc;
 };
 
-class GPUBufferView_Vulkan
-{
-public:
-	
-private:
-
-};
-
 class GPUBuffer_Vulkan : public GPUBuffer
 {
 public:
 	GPUBuffer_Vulkan();
 	GPUBuffer_Vulkan(VkBuffer buffer,
-		GPUBufferView_Vulkan bufferView,
 		VulkanBufferInfo& info,
 		VmaAllocator allocator,
 		VmaAllocation allocation,
@@ -48,7 +46,6 @@ public:
 
 private:
 	VkBuffer _buffer;
-	GPUBufferView_Vulkan _bufferView;
 	VulkanBufferInfo _info;
 	VmaAllocator _allocator;
 	VmaAllocation _allocation;

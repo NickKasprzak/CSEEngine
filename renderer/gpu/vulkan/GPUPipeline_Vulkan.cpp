@@ -94,13 +94,15 @@ uint32_t GPUPipeline_Vulkan::GetStateHashID() const
 }
 
 GPUPipelineLayoutInfo_Vulkan::GPUPipelineLayoutInfo_Vulkan()
-	: _inputs(), _pushConstants(), _hashID(UINT32_MAX)
+	: _inputs(), _pushConstants(), _attachments(), _hashID(UINT32_MAX)
 {
 
 }
 
-GPUPipelineLayoutInfo_Vulkan::GPUPipelineLayoutInfo_Vulkan(const std::vector<GPUPipelineLayoutInput_Vulkan>& inputs, const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& pushConstants)
-	: _inputs(inputs), _pushConstants(pushConstants), _hashID(UINT32_MAX)
+GPUPipelineLayoutInfo_Vulkan::GPUPipelineLayoutInfo_Vulkan(const std::vector<GPUPipelineLayoutInput_Vulkan>& inputs, 
+	const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& pushConstants,
+	const GPUPipelineLayoutAttachments_Vulkan& attachments)
+	: _inputs(inputs), _pushConstants(pushConstants), _attachments(attachments), _hashID(UINT32_MAX)
 {
 	uint32_t hash = 0;
 	for (int i = 0; i < _inputs.size(); i++)
@@ -115,7 +117,7 @@ GPUPipelineLayoutInfo_Vulkan::GPUPipelineLayoutInfo_Vulkan(const std::vector<GPU
 }
 
 GPUPipelineLayoutInfo_Vulkan::GPUPipelineLayoutInfo_Vulkan(const GPUPipelineLayoutInfo_Vulkan& other)
-	: _inputs(other._inputs), _pushConstants(other._pushConstants), _hashID(other._hashID)
+	: _inputs(other._inputs), _pushConstants(other._pushConstants), _attachments(other._attachments), _hashID(other._hashID)
 {
 
 }
@@ -150,6 +152,11 @@ const std::vector<GPUPipelineLayoutInput_Vulkan>& GPUPipelineLayoutInfo_Vulkan::
 const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& GPUPipelineLayoutInfo_Vulkan::GetPushConstants() const
 {
 	return _pushConstants;
+}
+
+const GPUPipelineLayoutAttachments_Vulkan& GPUPipelineLayoutInfo_Vulkan::GetAttachments() const
+{
+	return _attachments;
 }
 
 uint32_t GPUPipelineLayoutInfo_Vulkan::GetHashID() const
@@ -218,6 +225,54 @@ void GPUPipelineLayoutPushConstant_Vulkan::operator=(const GPUPipelineLayoutPush
 {
 	pushConstantLayout = other.pushConstantLayout;
 	stage = other.stage;
+	hashID = other.hashID;
+}
+
+GPUPipelineLayoutAttachments_Vulkan::GPUPipelineLayoutAttachments_Vulkan()
+	: colorAttachmentFormats(),
+	depthAttachmentFormat(VK_FORMAT_UNDEFINED),
+	stencilAttachmentFormat(VK_FORMAT_UNDEFINED),
+	hashID(UINT32_MAX)
+{
+
+}
+
+GPUPipelineLayoutAttachments_Vulkan::GPUPipelineLayoutAttachments_Vulkan(const std::vector<VkFormat>& colorAttachmentFormats,
+	VkFormat depthAttachmentFormat,
+	VkFormat stencilAttachmentFormat)
+	: colorAttachmentFormats(colorAttachmentFormats), 
+	depthAttachmentFormat(depthAttachmentFormat),
+	stencilAttachmentFormat(stencilAttachmentFormat),
+	hashID(UINT32_MAX)
+{
+	uint32_t hash = 0;
+	for (int i = 0; i < colorAttachmentFormats.size(); i++)
+	{
+		hash = hash ^ CSECore::FNVHash<VkFormat>(colorAttachmentFormats[i]);
+	}
+	hash = hash ^ CSECore::FNVHash<VkFormat>(depthAttachmentFormat);
+	hash = hash ^ CSECore::FNVHash<VkFormat>(stencilAttachmentFormat);
+}
+
+GPUPipelineLayoutAttachments_Vulkan::GPUPipelineLayoutAttachments_Vulkan(const GPUPipelineLayoutAttachments_Vulkan& other)
+	: colorAttachmentFormats(other.colorAttachmentFormats),
+	depthAttachmentFormat(other.depthAttachmentFormat),
+	stencilAttachmentFormat(other.stencilAttachmentFormat),
+	hashID(other.hashID)
+{
+
+}
+
+GPUPipelineLayoutAttachments_Vulkan::~GPUPipelineLayoutAttachments_Vulkan()
+{
+
+}
+
+void GPUPipelineLayoutAttachments_Vulkan::operator=(const GPUPipelineLayoutAttachments_Vulkan& other)
+{
+	colorAttachmentFormats = other.colorAttachmentFormats;
+	depthAttachmentFormat = other.depthAttachmentFormat;
+	stencilAttachmentFormat = other.stencilAttachmentFormat;
 	hashID = other.hashID;
 }
 

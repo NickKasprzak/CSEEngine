@@ -21,7 +21,10 @@ std::vector<VkPushConstantRange> CreatePushConstantRanges(std::vector<GPUPipelin
 GPUPipelineBuilder_Vulkan::GPUPipelineBuilder_Vulkan(VkDevice device)
 	: _device(device),
 	_shaderInfo(),
-	_layoutInfo(),
+	_layoutInputs(),
+	_layoutPushConstants(),
+	_layoutAttachments(),
+	_descriptorSetLayoutInfo(),
 	_layout(VK_NULL_HANDLE),
 	_viewportInfo(),
 	_rasterizationInfo(),
@@ -67,7 +70,10 @@ void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertex
 	{
 		_errorMessage = std::string("Failed to process graphics shader layout. Reason: " + layoutInfoResult.GetUnexpected());
 	}
-	_layoutInfo = layoutInfoResult.GetExpected();
+	ShaderLayoutInfo* layoutInfoPtr = layoutInfoResult.GetExpectedPtr();
+	_layoutInputs = layoutInfoPtr->layoutInputs;
+	_layoutPushConstants = layoutInfoPtr->layoutPushConstants;
+	_descriptorSetLayoutInfo = layoutInfoPtr->descriptorSetLayoutInfo;
 
 	VkShaderModuleCreateInfo vertModuleCreateInfo{};
 	vertModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -293,6 +299,10 @@ void GPUPipelineBuilder_Vulkan::SetAttachmentInfo(PipelineAttachmentInfo& attach
 	renderingInfo.depthAttachmentFormat = ImageFormatToVkFormat(attachmentInfo.depthAttachmentFormat);
 	renderingInfo.stencilAttachmentFormat = ImageFormatToVkFormat(attachmentInfo.stencilAttachmentFormat);
 	_attachmentInfo.createInfo = renderingInfo;
+
+	_layoutAttachments = GPUPipelineLayoutAttachments_Vulkan(_attachmentInfo.colorAttachmentFormats,
+		_attachmentInfo.createInfo.depthAttachmentFormat, 
+		_attachmentInfo.createInfo.stencilAttachmentFormat);
 }
 
 void GPUPipelineBuilder_Vulkan::SetDynamicStateInfo(PipelineDynamicStateInfo& dynamicStateInfo)
@@ -365,7 +375,7 @@ CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> GPUPipelineBuild
 	GPUPipelineBuilderResult_Vulkan buildResult{};
 	buildResult.pipeline = pipeline;
 	buildResult.layout = _layout;
-	buildResult.layoutInfo = GPUPipelineLayoutInfo_Vulkan(_layoutInfo.layoutInputs, _layoutInfo.layoutPushConstants);
+	buildResult.layoutInfo = GPUPipelineLayoutInfo_Vulkan(_layoutInputs, _layoutPushConstants, _layoutAttachments);
 
 	vkDestroyShaderModule(_device, _shaderInfo[0].module, nullptr);
 	_shaderInfo[0].module = VK_NULL_HANDLE;
@@ -378,7 +388,7 @@ CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> GPUPipelineBuild
 
 CSECore::Expected<VkPipelineLayout, std::string> GPUPipelineBuilder_Vulkan::_createPipelineLayout(VkDescriptorSetLayout descSetLayout)
 {
-	std::vector<VkPushConstantRange> pushConstantRanges = CreatePushConstantRanges(_layoutInfo.layoutPushConstants);
+	std::vector<VkPushConstantRange> pushConstantRanges = CreatePushConstantRanges(_layoutPushConstants);
 
 	VkPipelineLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

@@ -14,20 +14,6 @@ enum GPUPipelineStageFlags_Vulkan
 	PIPELINE_STAGE_FRAGMENT = 0x2
 };
 
-/*
-* Stores a collection of GPUDataLayouts 
-* representing all state that can be passed into
-* the pipeline. This should only be for SSBOs 
-* and a push constant.
-* 
-* If this is created using multiple shaders on one
-* pipeline (ie. vertex and fragment shaders), any
-* duplicate type layouts will be omitted.
-* 
-* This should also input info on what attachment types
-* can be attached.
-*/
-
 struct GPUPipelineLayoutInput_Vulkan
 {
 	GPUDataLayout inputLayout;
@@ -55,11 +41,28 @@ struct GPUPipelineLayoutPushConstant_Vulkan
 	void operator=(const GPUPipelineLayoutPushConstant_Vulkan& other);
 };
 
+struct GPUPipelineLayoutAttachments_Vulkan
+{
+	std::vector<VkFormat> colorAttachmentFormats;
+	VkFormat depthAttachmentFormat;
+	VkFormat stencilAttachmentFormat;
+	uint32_t hashID;
+
+	GPUPipelineLayoutAttachments_Vulkan();
+	GPUPipelineLayoutAttachments_Vulkan(const std::vector<VkFormat>& colorAttachmentFormats, VkFormat depthAttachmentFormat, VkFormat stencilAttachmentFormat);
+	GPUPipelineLayoutAttachments_Vulkan(const GPUPipelineLayoutAttachments_Vulkan& other);
+	~GPUPipelineLayoutAttachments_Vulkan();
+
+	void operator=(const GPUPipelineLayoutAttachments_Vulkan& other);
+};
+
 class GPUPipelineLayoutInfo_Vulkan
 {
 public:
 	GPUPipelineLayoutInfo_Vulkan();
-	GPUPipelineLayoutInfo_Vulkan(const std::vector<GPUPipelineLayoutInput_Vulkan>& inputs, const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& pushConstants);
+	GPUPipelineLayoutInfo_Vulkan(const std::vector<GPUPipelineLayoutInput_Vulkan>& inputs, 
+		const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& pushConstants,
+		const GPUPipelineLayoutAttachments_Vulkan& attachments);
 	GPUPipelineLayoutInfo_Vulkan(const GPUPipelineLayoutInfo_Vulkan& other);
 	~GPUPipelineLayoutInfo_Vulkan();
 
@@ -69,11 +72,13 @@ public:
 
 	const std::vector<GPUPipelineLayoutInput_Vulkan>& GetInputs() const;
 	const std::vector<GPUPipelineLayoutPushConstant_Vulkan>& GetPushConstants() const;
+	const GPUPipelineLayoutAttachments_Vulkan& GetAttachments() const;
 	uint32_t GetHashID() const;
 
 private:
 	std::vector<GPUPipelineLayoutInput_Vulkan> _inputs;
 	std::vector<GPUPipelineLayoutPushConstant_Vulkan> _pushConstants;
+	GPUPipelineLayoutAttachments_Vulkan _attachments;
 	uint32_t _hashID;
 };
 
