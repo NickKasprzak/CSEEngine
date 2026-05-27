@@ -152,11 +152,11 @@ VkDescriptorSet DescriptorSetManager_Vulkan::GetDescriptorSet()
 	return _set;
 }
 
-bool DescriptorSetLayoutInfo::DescriptorSetBindingInfo::operator==(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& other)
+bool operator==(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& lhs, const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& rhs)
 {
-	bool sameSet = set == other.set;
-	bool sameBind = binding == other.binding;
-	bool sameType = type == other.type;
+	bool sameSet = lhs.set == rhs.set;
+	bool sameBind = lhs.binding == rhs.binding;
+	bool sameType = lhs.type == rhs.type;
 	return sameSet && sameBind && sameType;
 }
 

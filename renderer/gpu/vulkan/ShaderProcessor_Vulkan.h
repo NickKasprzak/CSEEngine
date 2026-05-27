@@ -10,10 +10,10 @@ namespace CSERenderer
 
 struct ShaderLayoutInfo
 {
-	// add vertex input layout here
+	std::vector<VkVertexInputAttributeDescription> vertexAttributes;
 	DescriptorSetLayoutInfo descriptorSetLayoutInfo;
-	std::vector<GPUPipelineLayoutInput_Vulkan> layoutInputs;
-	std::vector<GPUPipelineLayoutPushConstant_Vulkan> layoutPushConstants;
+	std::vector<GPUDataLayout> ssboLayouts;
+	std::vector<PushConstantLayout> pushConstantLayouts;
 };
 
 CSECore::Expected<ShaderLayoutInfo, std::string> ProcessGraphicsShaderLayout(const std::string& vertexShaderCode, const std::string& fragmentShaderCode);

@@ -28,11 +28,18 @@ public:
 		Iterator& operator++(int);
 		Iterator& operator--(int);
 
-		bool operator==(const Iterator& other);
-		bool operator!=(const Iterator& other);
-
 	private:
 		Entry* _ptr;
+
+		friend bool operator==(const Iterator& lhs, const Interator& rhs)
+		{
+			return lhs._ptr == rhs._ptr;
+		}
+
+		friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
+		{
+			return lhs._ptr != rhs._ptr;
+		}
 	};
 
 	LinkedArray();
@@ -244,18 +251,6 @@ typename LinkedArray<Type, BlockElementCount>::Iterator& LinkedArray<Type, Block
 {
 	_ptr = _ptr->prev;
 	return *this;
-}
-
-template<typename Type, size_t BlockElementCount>
-bool LinkedArray<Type, BlockElementCount>::Iterator::operator==(const Iterator& other)
-{
-	return _ptr == other._ptr;
-}
-
-template<typename Type, size_t BlockElementCount>
-bool LinkedArray<Type, BlockElementCount>::Iterator::operator!=(const Iterator& other)
-{
-	return _ptr != other._ptr;
 }
 
 }

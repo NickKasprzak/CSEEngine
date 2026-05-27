@@ -4,6 +4,7 @@
 #include "Compositor_Vulkan.h"
 #include "DescriptorSetManager_Vulkan.h"
 #include "GPUPipelineManager_Vulkan.h"
+#include "../GPUDataLayoutRegistry.h"
 
 namespace CSERenderer
 {
@@ -30,7 +31,7 @@ public:
 	virtual void SetImageSampler(CSECore::Ref<GPUImage> image, SamplerFilterMode filter, SamplerAddressMode addressMode) override;
 	virtual void ImageCopy(CSECore::Ref<GPUImage> image /* args */) override;
 
-	virtual CSECore::Ref<GPUPipeline> CreatePipeline(const PipelineInfo& pipelineInfo) override;
+	virtual CSECore::Ref<GPUPipeline> CreateGraphicsPipeline(const PipelineInfo& pipelineInfo) override;
 	// create pipeline parameter set? have it pass in the args to assign as a big list of key/values? have it do any of the buffer creation/writes/descriptor stuff needed? only allow for specification of non-static members.
 	// given above, how do we handle array indexing? have array index be part of array data? do array indexing as dynamic value? what'd the difference be in indexing for material data and object data per draw?
 	
@@ -49,6 +50,7 @@ private:
 	Compositor_Vulkan _compositor;
 	DescriptorSetManager_Vulkan _descriptorSetManager;
 	GPUPipelineManager_Vulkan _pipelineManager;
+	GPUDataLayoutRegistry _dataLayoutRegistry;
 };
 
 typedef GPUBackend_Vulkan GPUBackend_Impl;

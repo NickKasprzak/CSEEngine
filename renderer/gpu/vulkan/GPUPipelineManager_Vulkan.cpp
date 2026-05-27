@@ -27,10 +27,23 @@ void GPUPipelineManager_Vulkan::Dispose()
 
 }
 
-CSECore::Ref<GPUPipeline> GPUPipelineManager_Vulkan::CreateGraphicsPipeline(const PipelineInfo& pipelineInfo, VkDescriptorSetLayout descSetLayout)
+CSECore::Ref<GPUPipeline> GPUPipelineManager_Vulkan::RegisterGraphicsPipeline(GPUPipeline_Vulkan& pipeline)
 {
-	CSE_ASSERT(pipelineInfo.shaderCount == 2, "Can only specify two shaders when creating a graphics pipeline.");
+	auto findResult = _pipelineHashToPipelineIndex.find(pipeline.GetHashID());
+	auto hashMapEnd = _pipelineHashToPipelineIndex.end();
+	if (findResult != hashMapEnd)
+	{
+		int32_t pipelineIndex = findResult->second;
+		return CSECore::MakeNonOwningRef<GPUPipeline>(_pipelines.GetAtIndex(pipelineIndex));
+	}
 
+	int32_t pipelineIndex = _pipelines.Add(std::move(pipeline));
+	_pipelineHashToPipelineIndex.insert(std::make_pair(pipeline.GetHashID(), pipelineIndex));
+	return CSECore::MakeNonOwningRef<GPUPipeline>(_pipelines.GetAtIndex(pipelineIndex));
+}
+
+CSECore::Ref<GPUPipeline> GPUPipelineManager_Vulkan::GetGraphicsPipeline(const PipelineInfo& pipelineInfo)
+{
 	uint32_t pipelineHash = CSECore::FNVHash(pipelineInfo);
 	auto findResult = _pipelineHashToPipelineIndex.find(pipelineHash);
 	auto hashMapEnd = _pipelineHashToPipelineIndex.end();
@@ -40,29 +53,7 @@ CSECore::Ref<GPUPipeline> GPUPipelineManager_Vulkan::CreateGraphicsPipeline(cons
 		return CSECore::MakeNonOwningRef<GPUPipeline>(_pipelines.GetAtIndex(pipelineIndex));
 	}
 
-	GPUPipelineBuilder_Vulkan builder(_device);
-	builder.SetGraphicsShaderInfo(pipelineInfo.shaders[0], pipelineInfo.shaders[1], descSetLayout);
-	builder.SetViewportInfo(*pipelineInfo.viewportInfo);
-	builder.SetRasterizationInfo(*pipelineInfo.rasterizationInfo);
-	builder.SetMultisampleInfo(*pipelineInfo.multisampleInfo);
-	builder.SetDepthStencilInfo(*pipelineInfo.depthStencilInfo);
-	builder.SetColorBlendInfo(*pipelineInfo.colorBlendInfo);
-	builder.SetAttachmentInfo(*pipelineInfo.attachmentInfo);
-	builder.SetDynamicStateInfo(*pipelineInfo.dynamicStateInfo);
-
-	CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> buildResult = builder.Build();
-	if (buildResult.HasUnexpected())
-	{
-		CSE_LOGE("Failed to build new pipeline. Reason: " + buildResult.GetUnexpected());
-		return CSECore::MakeEmptyRef<GPUPipeline>();
-	}
-
-
-	GPUPipelineBuilderResult_Vulkan result = buildResult.GetExpected();
-	GPUPipeline_Vulkan pipeline(_device, result.pipeline, result.layout, result.layoutInfo, pipelineHash);
-	int32_t pipelineIndex = _pipelines.Add(std::move(pipeline));
-	_pipelineHashToPipelineIndex.insert(std::make_pair(pipelineHash, pipelineIndex));
-	return CSECore::MakeNonOwningRef<GPUPipeline>(_pipelines.GetAtIndex(pipelineIndex));
+	return CSECore::MakeEmptyRef<GPUPipeline>();
 }
 
 }

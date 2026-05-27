@@ -28,7 +28,7 @@ public:
 	virtual void SetImageSampler(CSECore::Ref<GPUImage> image, SamplerFilterMode filter, SamplerAddressMode addressMode) = 0;
 	virtual void ImageCopy(CSECore::Ref<GPUImage> image) = 0;
 
-	virtual CSECore::Ref<GPUPipeline> CreatePipeline(const PipelineInfo& pipelineInfo) = 0;
+	virtual CSECore::Ref<GPUPipeline> CreateGraphicsPipeline(const PipelineInfo& pipelineInfo) = 0;
 
 	virtual void SetTargetWindow(const CSECore::Any<64>& windowInfo) = 0;
 	virtual void UpdateWindowSurfaceSize(uint16_t width, uint16_t height) = 0;

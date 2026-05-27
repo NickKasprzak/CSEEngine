@@ -1,9 +1,8 @@
 #pragma once
 #include "GPUPipeline_Vulkan.h"
-#include "DescriptorSetManager_Vulkan.h"
-#include "ShaderProcessor_Vulkan.h"
 #include "refcount/Ref.h"
 #include "Expected.h"
+#include <vector>
 
 namespace CSERenderer
 {
@@ -12,7 +11,6 @@ struct GPUPipelineBuilderResult_Vulkan
 {
 	VkPipeline pipeline;
 	VkPipelineLayout layout;
-	GPUPipelineLayoutInfo_Vulkan layoutInfo;
 };
 
 class GPUPipelineBuilder_Vulkan
@@ -51,7 +49,8 @@ public:
 	GPUPipelineBuilder_Vulkan(VkDevice device);
 	~GPUPipelineBuilder_Vulkan();
 
-	void SetGraphicsShaderInfo(PipelineShaderInfo& vertexShader, PipelineShaderInfo& fragmentShader, VkDescriptorSetLayout descSetLayout);
+	void SetGraphicsShaderInfo(PipelineShaderInfo& vertexShader, PipelineShaderInfo& fragmentShader);
+	void SetLayoutInfo(VkDescriptorSetLayout descSetLayout, const std::vector<PushConstantLayout>& pushConstantLayouts);
 	void SetViewportInfo(PipelineViewportInfo& viewportInfo);
 	void SetRasterizationInfo(PipelineRasterizationInfo& rasterizationInfo);
 	void SetMultisampleInfo(PipelineMultisampleInfo& multisampleInfo);
@@ -66,10 +65,6 @@ private:
 	VkDevice _device;
 
 	ShaderInfo _shaderInfo[2];
-	std::vector<GPUPipelineLayoutInput_Vulkan> _layoutInputs;
-	std::vector<GPUPipelineLayoutPushConstant_Vulkan> _layoutPushConstants;
-	GPUPipelineLayoutAttachments_Vulkan _layoutAttachments;
-	DescriptorSetLayoutInfo _descriptorSetLayoutInfo;
 	VkPipelineLayout _layout;
 	ViewportInfo _viewportInfo;
 	VkPipelineRasterizationStateCreateInfo _rasterizationInfo;
@@ -81,7 +76,6 @@ private:
 
 	std::string _errorMessage;
 
-	CSECore::Expected<VkPipelineLayout, std::string> _createPipelineLayout(VkDescriptorSetLayout descSetLayout);
 	bool _hasError();
 };
 

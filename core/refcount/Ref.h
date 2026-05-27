@@ -19,6 +19,9 @@ public:
 
 	Type* GetRawPointer();
 
+	template<typename CastType>
+	CastType* GetRawCastedPointer();
+
 private:
 	Type* _data;
 	bool _owning;
@@ -97,6 +100,13 @@ template<typename Type>
 Type* Ref<Type>::GetRawPointer()
 {
 	return _data;
+}
+
+template<typename Type>
+template<typename CastType>
+CastType* Ref<Type>::GetRawCastedPointer()
+{
+	return static_cast<CastedType*>(_data);
 }
 
 template<typename T>

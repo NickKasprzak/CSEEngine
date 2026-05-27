@@ -114,11 +114,6 @@ void GPUDataLayout::operator=(const GPUDataLayout& other)
 	_members = other._members;
 }
 
-bool GPUDataLayout::operator==(const GPUDataLayout& other)
-{
-	return _hashID == other._hashID;
-}
-
 const std::string& GPUDataLayout::GetName() const
 {
 	return _name;
@@ -179,6 +174,33 @@ GPUDataLayout GPUDataLayoutBuilder::Build()
 	CSE_ASSERT(_members.size() != 0, "Can't build a GPUDataLayout without giving it any members.");
 
 	return GPUDataLayout(_name, _members);
+}
+
+GPUDataLayoutRef::GPUDataLayoutRef()
+	: _layout()
+{
+
+}
+
+GPUDataLayoutRef::GPUDataLayoutRef(const GPUDataLayout& layout)
+	: _layout(layout)
+{
+
+}
+
+GPUDataLayoutRef::~GPUDataLayoutRef()
+{
+
+}
+
+void GPUDataLayoutRef::operator=(const GPUDataLayoutRef& other)
+{
+	_layout = other._layout;
+}
+
+const GPUDataLayout& GPUDataLayoutRef::GetLayout()
+{
+	return _layout;
 }
 
 }

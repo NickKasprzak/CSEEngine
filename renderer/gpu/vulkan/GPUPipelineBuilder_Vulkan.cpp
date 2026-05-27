@@ -16,15 +16,11 @@ VkBlendFactor BlendFactorToVkBlendFactor(PipelineColorBlendInfo::BlendFactor ble
 VkBlendOp BlendOpToVkBlendOp(PipelineColorBlendInfo::BlendOp blendOp);
 std::vector<VkFormat> ImageFormatsToVkFormats(ImageFormat* formats, uint32_t formatCount);
 std::vector<VkDynamicState> DynamicStateFlagsToVkDynamicStates(PipelineDynamicStateInfo::DynamicStateFlags flags);
-std::vector<VkPushConstantRange> CreatePushConstantRanges(std::vector<GPUPipelineLayoutPushConstant_Vulkan> layouts);
+std::vector<VkPushConstantRange> CreatePushConstantRanges(std::vector<PushConstantLayout> layouts);
 
 GPUPipelineBuilder_Vulkan::GPUPipelineBuilder_Vulkan(VkDevice device)
 	: _device(device),
 	_shaderInfo(),
-	_layoutInputs(),
-	_layoutPushConstants(),
-	_layoutAttachments(),
-	_descriptorSetLayoutInfo(),
 	_layout(VK_NULL_HANDLE),
 	_viewportInfo(),
 	_rasterizationInfo(),
@@ -56,29 +52,17 @@ GPUPipelineBuilder_Vulkan::~GPUPipelineBuilder_Vulkan()
 	}
 }
 
-void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertexShader, PipelineShaderInfo& fragmentShader, VkDescriptorSetLayout descSetLayout)
+void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertexShader, PipelineShaderInfo& fragmentShader)
 {
 	if (_hasError())
 	{
 		return;
 	}
 
-	std::string& vertCode = vertexShader.shaderCode;
-	std::string& fragCode = fragmentShader.shaderCode;
-	CSECore::Expected<ShaderLayoutInfo, std::string> layoutInfoResult = ProcessGraphicsShaderLayout(vertCode, fragCode);
-	if (layoutInfoResult.HasUnexpected())
-	{
-		_errorMessage = std::string("Failed to process graphics shader layout. Reason: " + layoutInfoResult.GetUnexpected());
-	}
-	ShaderLayoutInfo* layoutInfoPtr = layoutInfoResult.GetExpectedPtr();
-	_layoutInputs = layoutInfoPtr->layoutInputs;
-	_layoutPushConstants = layoutInfoPtr->layoutPushConstants;
-	_descriptorSetLayoutInfo = layoutInfoPtr->descriptorSetLayoutInfo;
-
 	VkShaderModuleCreateInfo vertModuleCreateInfo{};
 	vertModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	vertModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(vertCode.data());
-	vertModuleCreateInfo.codeSize = vertCode.size() / sizeof(uint32_t);
+	vertModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(vertexShader.shaderCode.data());
+	vertModuleCreateInfo.codeSize = vertexShader.shaderCode.size() / sizeof(uint32_t);
 
 	VkShaderModule vertModule;
 	VkResult vertModuleResult = vkCreateShaderModule(_device, &vertModuleCreateInfo, nullptr, &vertModule);
@@ -87,7 +71,7 @@ void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertex
 		switch (vertModuleResult)
 		{
 		default:
-			_errorMessage = std::string("Failed to create vertex shader module. Reason: Unknown error.");
+			_errorMessage = std::string("Failed to create vertex shader module for an unknown reason.");
 			return;
 		}
 	}
@@ -102,8 +86,8 @@ void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertex
 
 	VkShaderModuleCreateInfo fragModuleCreateInfo{};
 	vertModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	vertModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(fragCode.data());
-	vertModuleCreateInfo.codeSize = fragCode.size() / sizeof(uint32_t);
+	vertModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(fragmentShader.shaderCode.data());
+	vertModuleCreateInfo.codeSize = fragmentShader.shaderCode.size() / sizeof(uint32_t);
 
 	VkShaderModule fragModule;
 	VkResult fragModuleResult = vkCreateShaderModule(_device, &fragModuleCreateInfo, nullptr, &fragModule);
@@ -112,7 +96,7 @@ void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertex
 		switch (fragModuleResult)
 		{
 		default:
-			_errorMessage = std::string("Failed to create fragment shader module. Reason: Unknown error.");
+			_errorMessage = std::string("Failed to create fragment shader module for an unknown reason.");
 			return;
 		}
 	}
@@ -124,14 +108,32 @@ void GPUPipelineBuilder_Vulkan::SetGraphicsShaderInfo(PipelineShaderInfo& vertex
 	vertCreateInfo.module = _shaderInfo[1].module;
 	vertCreateInfo.pName = "main";
 	_shaderInfo[1].createInfo = fragCreateInfo;
+}
 
-	CSECore::Expected<VkPipelineLayout, std::string> layoutResult = _createPipelineLayout(descSetLayout);
-	if (layoutResult.HasUnexpected())
+void GPUPipelineBuilder_Vulkan::SetLayoutInfo(VkDescriptorSetLayout descSetLayout, const std::vector<PushConstantLayout>& pushConstantLayouts)
+{
+	std::vector<VkPushConstantRange> pushConstantRanges = CreatePushConstantRanges(pushConstantLayouts);
+
+	VkPipelineLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	layoutInfo.setLayoutCount = 1;
+	layoutInfo.pSetLayouts = &descSetLayout;
+	layoutInfo.pushConstantRangeCount = pushConstantRanges.size();
+	layoutInfo.pPushConstantRanges = pushConstantRanges.data();
+
+	VkPipelineLayout layout;
+	VkResult layoutResult = vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &layout);
+	if (layoutResult != VK_SUCCESS)
 	{
-		_errorMessage = layoutResult.GetUnexpected();
-		return;
+		switch (layoutResult)
+		{
+		default:
+			_errorMessage = std::string("Failed to create pipeline layout for an unknown reason.");
+			return;
+		}
 	}
-	_layout = layoutResult.GetExpected();
+
+	_layout = layout;
 }
 
 void GPUPipelineBuilder_Vulkan::SetViewportInfo(PipelineViewportInfo& viewportInfo)
@@ -299,10 +301,6 @@ void GPUPipelineBuilder_Vulkan::SetAttachmentInfo(PipelineAttachmentInfo& attach
 	renderingInfo.depthAttachmentFormat = ImageFormatToVkFormat(attachmentInfo.depthAttachmentFormat);
 	renderingInfo.stencilAttachmentFormat = ImageFormatToVkFormat(attachmentInfo.stencilAttachmentFormat);
 	_attachmentInfo.createInfo = renderingInfo;
-
-	_layoutAttachments = GPUPipelineLayoutAttachments_Vulkan(_attachmentInfo.colorAttachmentFormats,
-		_attachmentInfo.createInfo.depthAttachmentFormat, 
-		_attachmentInfo.createInfo.stencilAttachmentFormat);
 }
 
 void GPUPipelineBuilder_Vulkan::SetDynamicStateInfo(PipelineDynamicStateInfo& dynamicStateInfo)
@@ -368,14 +366,13 @@ CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> GPUPipelineBuild
 		switch (result)
 		{
 		default:
-			return CSECore::CreateUnexpected<GPUPipelineBuilderResult_Vulkan, std::string>("Failed to build graphics pipeline. Reason: Unknown error.");
+			return CSECore::CreateUnexpected<GPUPipelineBuilderResult_Vulkan, std::string>("Failed to build graphics pipeline for an unknown reason.");
 		}
 	}
 
 	GPUPipelineBuilderResult_Vulkan buildResult{};
 	buildResult.pipeline = pipeline;
 	buildResult.layout = _layout;
-	buildResult.layoutInfo = GPUPipelineLayoutInfo_Vulkan(_layoutInputs, _layoutPushConstants, _layoutAttachments);
 
 	vkDestroyShaderModule(_device, _shaderInfo[0].module, nullptr);
 	_shaderInfo[0].module = VK_NULL_HANDLE;
@@ -384,31 +381,6 @@ CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> GPUPipelineBuild
 	_shaderInfo[1].module = VK_NULL_HANDLE;
 
 	return CSECore::CreateExpected<GPUPipelineBuilderResult_Vulkan, std::string>(buildResult);
-}
-
-CSECore::Expected<VkPipelineLayout, std::string> GPUPipelineBuilder_Vulkan::_createPipelineLayout(VkDescriptorSetLayout descSetLayout)
-{
-	std::vector<VkPushConstantRange> pushConstantRanges = CreatePushConstantRanges(_layoutPushConstants);
-
-	VkPipelineLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	layoutInfo.setLayoutCount = 1;
-	layoutInfo.pSetLayouts = &descSetLayout;
-	layoutInfo.pushConstantRangeCount = pushConstantRanges.size();
-	layoutInfo.pPushConstantRanges = pushConstantRanges.data();
-
-	VkPipelineLayout layout;
-	VkResult layoutResult = vkCreatePipelineLayout(_device, &layoutInfo, nullptr, &layout);
-	if (layoutResult != VK_SUCCESS)
-	{
-		switch (layoutResult)
-		{
-		default:
-			return CSECore::CreateUnexpected<VkPipelineLayout, std::string>("Failed to create pipeline layout. Reason: Unknown error.");
-		}
-	}
-
-	return CSECore::CreateExpected<VkPipelineLayout, std::string>(layout);
 }
 
 bool GPUPipelineBuilder_Vulkan::_hasError()
@@ -610,14 +582,14 @@ std::vector<VkDynamicState> DynamicStateFlagsToVkDynamicStates(PipelineDynamicSt
 	return dynamicState;
 }
 
-std::vector<VkPushConstantRange> CreatePushConstantRanges(std::vector<GPUPipelineLayoutPushConstant_Vulkan> layouts)
+std::vector<VkPushConstantRange> CreatePushConstantRanges(std::vector<PushConstantLayout> layouts)
 {
 	std::vector<VkPushConstantRange> ranges;
 	for (int i = 0; i < layouts.size(); i++)
 	{
 		VkPushConstantRange range;
-		range.stageFlags = PipelineStageFlagsToVkShaderStageFlags(layouts[i].stage);
-		range.size = layouts[i].pushConstantLayout.GetSize();
+		range.stageFlags = PipelineStageFlagsToVkShaderStageFlags(layouts[i].GetStageFlags());
+		range.size = layouts[i].GetDataLayout().GetSize();
 		range.offset = 0;
 		ranges.push_back(range);
 	}

@@ -17,7 +17,8 @@ public:
 	void Initialize(VkDevice device);
 	void Dispose();
 
-	CSECore::Ref<GPUPipeline> CreateGraphicsPipeline(const PipelineInfo& pipelineInfo, VkDescriptorSetLayout descSetLayout);
+	CSECore::Ref<GPUPipeline> RegisterGraphicsPipeline(GPUPipeline_Vulkan& pipeline);
+	CSECore::Ref<GPUPipeline> GetGraphicsPipeline(const PipelineInfo& pipelineInfo);
 
 private:
 	VkDevice _device;

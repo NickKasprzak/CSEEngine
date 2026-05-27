@@ -165,11 +165,11 @@ static uint32_t FNVHash<CSERenderer::PipelineInfo>(const CSERenderer::PipelineIn
 		hash ^= FNVHash(info.shaders[i].shaderType);
 	}
 
-	hash ^= FNVHash(info.viewportInfo);
-	hash ^= FNVHash(info.rasterizationInfo);
-	hash ^= FNVHash(info.multisampleInfo);
-	hash ^= FNVHash(info.depthStencilInfo);
-	hash ^= FNVHash(info.colorBlendInfo);
+	hash ^= FNVHash(*info.viewportInfo);
+	hash ^= FNVHash(*info.rasterizationInfo);
+	hash ^= FNVHash(*info.multisampleInfo);
+	hash ^= FNVHash(*info.depthStencilInfo);
+	hash ^= FNVHash(*info.colorBlendInfo);
 
 	for (int i = 0; i < info.attachmentInfo->colorAttachmentCount; i++)
 	{
@@ -178,7 +178,7 @@ static uint32_t FNVHash<CSERenderer::PipelineInfo>(const CSERenderer::PipelineIn
 	hash ^= FNVHash(info.attachmentInfo->depthAttachmentFormat);
 	hash ^= FNVHash(info.attachmentInfo->stencilAttachmentFormat);
 
-	hash ^= FNVHash(info.dynamicStateInfo);
+	hash ^= FNVHash(*info.dynamicStateInfo);
 
 	return hash;
 }

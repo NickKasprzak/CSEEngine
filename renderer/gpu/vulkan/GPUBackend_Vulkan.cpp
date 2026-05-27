@@ -2,10 +2,14 @@
 #include "GPUBuffer_Vulkan.h"
 #include "GPUImage_Vulkan.h"
 #include "GPUPipeline_Vulkan.h"
+#include "GPUPipelineBuilder_Vulkan.h"
+#include "Vertex_Vulkan.h"
+#include "ShaderProcessor_Vulkan.h"
 #include "Utils_Vulkan.h"
 #include "../../utility/PlatformWindowInfo_Renderer.h"
 #include "Expected.h"
 #include "Assert.h"
+#include "Logger.h"
 
 namespace CSERenderer
 {
@@ -30,7 +34,7 @@ VkFilter FilterToVkFilter(SamplerFilterMode filterMode);
 VkSamplerAddressMode AddressModeToVkAddressMode(SamplerAddressMode addressMode);
 
 GPUBackend_Vulkan::GPUBackend_Vulkan()
-	: _device(), _windowSurface(), _swapchain(), _compositor(), _descriptorSetManager(), _pipelineManager()
+	: _device(), _windowSurface(), _swapchain(), _compositor(), _descriptorSetManager(), _pipelineManager(), _dataLayoutRegistry()
 {
 
 }
@@ -126,9 +130,106 @@ void GPUBackend_Vulkan::ImageCopy(CSECore::Ref<GPUImage> image)
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off image copy request to compositor.");
 }
 
-CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreatePipeline(const PipelineInfo& pipelineInfo)
+CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const PipelineInfo& pipelineInfo)
 {
-	return _pipelineManager.CreateGraphicsPipeline(pipelineInfo, _descriptorSetManager.GetDescriptorSetLayout());
+	CSE_ASSERT(pipelineInfo.shaderCount >= 2, "Creating a graphics pipeline requires at least 2 shaders.");
+
+	// Check if a pipeline with the required state already exists
+
+	CSECore::Ref<GPUPipeline> existingPipeline = _pipelineManager.GetGraphicsPipeline(pipelineInfo);
+	if (existingPipeline.GetRawPointer() != nullptr)
+	{
+		return existingPipeline;
+	}
+
+	// Process shader layouts
+
+	CSECore::Expected<ShaderLayoutInfo, std::string> shaderProcessResult = ProcessGraphicsShaderLayout(pipelineInfo.shaders[0].shaderCode, pipelineInfo.shaders[1].shaderCode);
+	if (shaderProcessResult.HasUnexpected())
+	{
+		CSE_LOGE("Failed to create graphics pipeline. Reason: " << shaderProcessResult.GetUnexpected());
+		return CSECore::MakeEmptyRef<GPUPipeline>();
+	}
+	ShaderLayoutInfo* shaderLayout = shaderProcessResult.GetExpectedPtr();
+
+	// Validate descriptor set layout, vertex attributes, and SSBO layouts
+
+	if (ValidateShaderDescriptorSetLayout(shaderLayout->descriptorSetLayoutInfo) == false)
+	{
+		CSE_LOGE("Failed to create graphics pipeline. Reason: Unsupported descriptor set layout.");
+		return CSECore::MakeEmptyRef<GPUPipeline>();
+	}
+
+	if (ValidateShaderVertexAttributes(shaderLayout->vertexAttributes) == false)
+	{
+		CSE_LOGE("Failed to create graphics pipeline. Reason: Unsupported vertex layout.");
+		return CSECore::MakeEmptyRef<GPUPipeline>();
+	}
+
+	for (int i = 0; i < shaderLayout->ssboLayouts.size(); i++)
+	{
+		CSECore::Ref<GPUDataLayoutRef> layoutRef = _dataLayoutRegistry.GetDataLayout(shaderLayout->ssboLayouts[i].GetName());
+		if (layoutRef.GetRawPointer() != nullptr &&
+			layoutRef->GetLayout() == shaderLayout->ssboLayouts[i])
+		{
+			CSE_LOGE("Failed to create graphics pipeline. Reason: An SSBO input layout with the name " + shaderLayout->ssboLayouts[i].GetName() + " already exists with a different layout.");
+			return CSECore::MakeEmptyRef<GPUPipeline>();
+		}
+	}
+
+	// Build the pipeline
+
+	GPUPipelineBuilder_Vulkan builder(_device.GetVkDevice());
+	builder.SetGraphicsShaderInfo(pipelineInfo.shaders[0], pipelineInfo.shaders[1]);
+	builder.SetLayoutInfo(_descriptorSetManager.GetDescriptorSetLayout(), shaderLayout->pushConstantLayouts);
+	builder.SetViewportInfo(*pipelineInfo.viewportInfo);
+	builder.SetRasterizationInfo(*pipelineInfo.rasterizationInfo);
+	builder.SetMultisampleInfo(*pipelineInfo.multisampleInfo);
+	builder.SetDepthStencilInfo(*pipelineInfo.depthStencilInfo);
+	builder.SetColorBlendInfo(*pipelineInfo.colorBlendInfo);
+	builder.SetAttachmentInfo(*pipelineInfo.attachmentInfo);
+	builder.SetDynamicStateInfo(*pipelineInfo.dynamicStateInfo);
+
+	CSECore::Expected<GPUPipelineBuilderResult_Vulkan, std::string> buildResult = builder.Build();
+	if (buildResult.HasUnexpected())
+	{
+		CSE_LOGE("Failed to create graphics pipeline. Reason: " << buildResult.GetUnexpected());
+		return CSECore::MakeEmptyRef<GPUPipeline>();
+	}
+	GPUPipelineBuilderResult_Vulkan* pipelineHandles = buildResult.GetExpectedPtr();
+
+	// Register SSBO layouts in the layout registry
+
+	std::vector<CSECore::Ref<GPUDataLayoutRef>> ssboLayoutRefs;
+	for (int i = 0; i < shaderLayout->ssboLayouts.size(); i++)
+	{
+		ssboLayoutRefs.push_back(_dataLayoutRegistry.AddDataLayout(shaderLayout->ssboLayouts[i]));
+	}
+
+	// Create a RenderAttachmentLayout from the given pipeline info
+
+	std::vector<VkFormat> colorAttachments;
+	for (int i = 0; i < pipelineInfo.attachmentInfo->colorAttachmentCount; i++)
+	{
+		colorAttachments.push_back(ImageFormatToVkFormat(pipelineInfo.attachmentInfo->colorAttachmentFormats[i]));
+	}
+	VkFormat depthFormat = ImageFormatToVkFormat(pipelineInfo.attachmentInfo->depthAttachmentFormat);
+	VkFormat stencilFormat = ImageFormatToVkFormat(pipelineInfo.attachmentInfo->stencilAttachmentFormat);
+
+	RenderAttachmentLayout attachments(colorAttachments, depthFormat, stencilFormat);
+
+	// Create and register the GPUPipeline object
+
+	GPUPipeline_Vulkan pipeline(_device.GetVkDevice(),
+		pipelineHandles->pipeline,
+		pipelineHandles->layout,
+		ssboLayoutRefs,
+		shaderLayout->pushConstantLayouts,
+		attachments,
+		pipelineInfo);
+	CSECore::Ref<GPUPipeline> pipelineRef = _pipelineManager.RegisterGraphicsPipeline(pipeline);
+
+	return pipelineRef;
 }
 
 void GPUBackend_Vulkan::SetTargetWindow(const CSECore::Any<64>& windowInfo)

@@ -1,20 +1,20 @@
 #include "ShaderProcessor_Vulkan.h"
 #include "Logger.h"
 #include "spirv_reflect.h"
-#include <set>
 
 namespace CSERenderer
 {
 
 struct ShaderProcessingInfo
 {
+	std::vector<VkVertexInputAttributeDescription> vertexAttributes;
+	std::vector<DescriptorSetLayoutInfo::DescriptorSetBindingInfo> descriptorBindings;
+	std::vector<GPUDataLayout> inputLayouts;
 	struct PushConstantLayout
 	{
 		GPUDataLayout layout;
 		GPUPipelineStageFlags_Vulkan stage = PIPELINE_STAGE_NULL;
 	};
-	std::vector<DescriptorSetLayoutInfo::DescriptorSetBindingInfo> descriptorBindings;
-	std::vector<GPUDataLayout> inputLayouts;
 	std::vector<PushConstantLayout> pushConstantLayouts;
 };
 
@@ -49,6 +49,7 @@ public:
 
 	void AddShaderProcessingInfoData(const ShaderProcessingInfo& data);
 
+	void AddVertexAttribute(const VkVertexInputAttributeDescription& vertexAttribute);
 	void AddDescriptorBinding(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& descBinding);
 	void AddInputEntry(const GPUDataLayout& layout);
 	void AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
@@ -56,6 +57,7 @@ public:
 	ShaderLayoutInfo Build();
 
 private:
+	std::vector<VkVertexInputAttributeDescription> _vertexAttributes;
 	std::vector<DescriptorSetLayoutInfo::DescriptorSetBindingInfo> _descriptorBindings;
 	std::vector<InputEntry> _inputEntries;
 	std::vector<PushConstantEntry> _pushConstantEntries;
@@ -63,8 +65,10 @@ private:
 
 CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags_Vulkan stage);
 CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags_Vulkan stage);
+CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> ProcessShaderVertexAttributes(SpvReflectShaderModule& module);
 
 CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block);
+VkFormat SpvReflectFormatToVkFormat(SpvReflectFormat spvFormat);
 DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits numTraits);
 DescriptorSetLayoutInfo::DescriptorSetBindingInfo::DescriptorType SpvReflectDescriptorTypeToDescriptorType(SpvReflectDescriptorType descType);
 
@@ -165,7 +169,48 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvRefl
 	result.inputLayouts = inputLayouts;
 	result.pushConstantLayouts = pushConstantLayouts;
 
+	if (stage == PIPELINE_STAGE_VERTEX)
+	{
+		CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> vertexAttributesResult = ProcessShaderVertexAttributes(module);
+		if (vertexAttributesResult.HasUnexpected())
+		{
+			return CSECore::CreateUnexpected<ShaderProcessingInfo, std::string>(vertexAttributesResult.GetUnexpected());
+		}
+		result.vertexAttributes = vertexAttributesResult.GetExpected();
+	}
+
 	return CSECore::CreateExpected<ShaderProcessingInfo, std::string>(result);
+}
+
+CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> ProcessShaderVertexAttributes(SpvReflectShaderModule& module)
+{
+	std::vector<VkVertexInputAttributeDescription> vertAttribs;
+
+	uint32_t inputVariableCount = 0;
+	spvReflectEnumerateInputVariables(&module, &inputVariableCount, nullptr);
+	std::vector<SpvReflectInterfaceVariable*> inputVariables;
+	inputVariables.resize(inputVariableCount);
+	spvReflectEnumerateInputVariables(&module, &inputVariableCount, nullptr);
+
+	for (int i = 0; i < inputVariableCount; i++)
+	{
+		SpvReflectInterfaceVariable* input = inputVariables[i];
+
+		VkFormat format = SpvReflectFormatToVkFormat(input->format);
+		if (format == VK_FORMAT_UNDEFINED)
+		{
+			return CSECore::CreateUnexpected<std::vector<VkVertexInputAttributeDescription>, std::string>("Vertex attribute is of undefined format.");
+		}
+
+		VkVertexInputAttributeDescription vertAttrib;
+		vertAttrib.location = input->location;
+		vertAttrib.binding = 0;
+		vertAttrib.format = format;
+		vertAttrib.offset = input->word_offset.location;
+		vertAttribs.push_back(vertAttrib);
+	}
+
+	return CSECore::CreateExpected<std::vector<VkVertexInputAttributeDescription>, std::string>(vertAttribs);
 }
 
 CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block)
@@ -204,6 +249,23 @@ CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const Sp
 	}
 
 	return CSECore::CreateExpected<GPUDataLayout, std::string>(builder.Build());
+}
+
+VkFormat SpvReflectFormatToVkFormat(SpvReflectFormat spvFormat)
+{
+	switch (spvFormat)
+	{
+	case SPV_REFLECT_FORMAT_R32G32B32A32_SFLOAT:
+		return VK_FORMAT_R32G32B32A32_SFLOAT;
+	case SPV_REFLECT_FORMAT_R32G32B32_SFLOAT:
+		return VK_FORMAT_R32G32B32_SFLOAT;
+	case SPV_REFLECT_FORMAT_R32G32_SFLOAT:
+		return VK_FORMAT_R32G32_SFLOAT;
+	case SPV_REFLECT_FORMAT_R32_SFLOAT:
+		return VK_FORMAT_R32_SFLOAT;
+	default:
+		return VK_FORMAT_UNDEFINED;
+	}
 }
 
 DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
@@ -259,7 +321,7 @@ DescriptorSetLayoutInfo::DescriptorSetBindingInfo::DescriptorType SpvReflectDesc
 }
 
 ShaderLayoutInfoBuilder::ShaderLayoutInfoBuilder()
-	: _descriptorBindings(), _inputEntries(), _pushConstantEntries()
+	: _vertexAttributes(), _descriptorBindings(), _inputEntries(), _pushConstantEntries()
 {
 
 }
@@ -271,6 +333,11 @@ ShaderLayoutInfoBuilder::~ShaderLayoutInfoBuilder()
 
 void ShaderLayoutInfoBuilder::AddShaderProcessingInfoData(const ShaderProcessingInfo& data)
 {
+	for (int i = 0; i < data.vertexAttributes.size(); i++)
+	{
+		AddVertexAttribute(data.vertexAttributes[i]);
+	}
+
 	for (int i = 0; i < data.descriptorBindings.size(); i++)
 	{
 		AddDescriptorBinding(data.descriptorBindings[i]);
@@ -285,6 +352,11 @@ void ShaderLayoutInfoBuilder::AddShaderProcessingInfoData(const ShaderProcessing
 	{
 		AddPushConstantEntry(data.pushConstantLayouts[i].layout, data.pushConstantLayouts[i].stage);
 	}
+}
+
+void ShaderLayoutInfoBuilder::AddVertexAttribute(const VkVertexInputAttributeDescription& vertexAttribute)
+{
+	_vertexAttributes.push_back(vertexAttribute);
 }
 
 void ShaderLayoutInfoBuilder::AddDescriptorBinding(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& descBinding)
@@ -329,22 +401,23 @@ void ShaderLayoutInfoBuilder::AddPushConstantEntry(const GPUDataLayout& layout, 
 
 ShaderLayoutInfo ShaderLayoutInfoBuilder::Build()
 {
-	std::vector<GPUPipelineLayoutInput_Vulkan> inputs;
+	std::vector<GPUDataLayout> inputs;
 	for (int i = 0; i < _inputEntries.size(); i++)
 	{
-		inputs.push_back(GPUPipelineLayoutInput_Vulkan(_inputEntries[i].layout));
+		inputs.push_back(_inputEntries[i].layout);
 	}
 
-	std::vector<GPUPipelineLayoutPushConstant_Vulkan> pushConstants;
+	std::vector<PushConstantLayout> pushConstants;
 	for (int i = 0; i < _pushConstantEntries.size(); i++)
 	{
-		pushConstants.push_back(GPUPipelineLayoutPushConstant_Vulkan(_pushConstantEntries[i].layout, _pushConstantEntries[i].stage));
+		pushConstants.push_back(PushConstantLayout(_pushConstantEntries[i].layout, _pushConstantEntries[i].stage));
 	}
 
 	ShaderLayoutInfo layoutInfo;
+	layoutInfo.vertexAttributes = _vertexAttributes;
 	layoutInfo.descriptorSetLayoutInfo.bindings = _descriptorBindings;
-	layoutInfo.layoutInputs = inputs;
-	layoutInfo.layoutPushConstants = pushConstants;
+	layoutInfo.ssboLayouts = inputs;
+	layoutInfo.pushConstantLayouts = pushConstants;
 
 	return layoutInfo;
 }

@@ -58,4 +58,30 @@ static std::vector<VkVertexInputAttributeDescription> GetVertexAttributeDescript
 	return attributeDescriptions;
 }
 
+static bool ValidateShaderVertexAttributes(const std::vector<VkVertexInputAttributeDescription>& vertexAttributes)
+{
+	const std::vector<VkVertexInputAttributeDescription> supportedAttribs = GetVertexAttributeDescriptions();
+
+	if (vertexAttributes.size() != supportedAttribs.size())
+	{
+		return false;
+	}
+	
+	for (int i = 0; i < supportedAttribs.size(); i++)
+	{
+		bool mismatchEncountered = false;
+		mismatchEncountered |= (supportedAttribs[i].binding != vertexAttributes[i].binding);
+		mismatchEncountered |= (supportedAttribs[i].format != vertexAttributes[i].format);
+		mismatchEncountered |= (supportedAttribs[i].location != vertexAttributes[i].location);
+		mismatchEncountered |= (supportedAttribs[i].offset != vertexAttributes[i].offset);
+
+		if (mismatchEncountered)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 }

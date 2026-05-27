@@ -74,19 +74,28 @@ public:
 		Iterator& operator++(int);
 		Iterator& operator--(int);
 
-		bool operator==(const Iterator& other);
-		bool operator!=(const Iterator& other);
-
 		Type* GetPointer();
 
 	private:
 		Entry* _src;
 		int32_t _index;
+
+		friend bool operator==(const Iterator& lhs, const Iterator& rhs)
+		{
+			return (lhs._src == rhs._src) && (lhs._index == rhs._index);
+		}
+
+		friend bool operator!=(const Iterator& lhs, const Iterator& rhs)
+		{
+			return (lhs._src != rhs._src) && (lhs._index != rhs._index);
+		}
 	};
 
 	SkipArray();
 	~SkipArray();
 
+	template<typename U = Type, 
+		typename std::enable_if<std::is_copy_assignable_v<U>, int>::type = 0>
 	int32_t Add(const Type& data);
 	int32_t Add(Type&& data);
 	void Remove(Type* data);
@@ -159,6 +168,7 @@ SkipArray<Type, BlockElementCount>::~SkipArray()
 }
 
 template<typename Type, size_t BlockElementCount>
+template<typename U, typename std::enable_if<std::is_copy_assignable_v<U>, int>::type>
 int32_t SkipArray<Type, BlockElementCount>::Add(const Type& data)
 {
 	return _addImpl(data, std::is_copy_assignable<Type>::type{});
@@ -733,18 +743,6 @@ typename SkipArray<Type, BlockElementCount>::Iterator& SkipArray<Type, BlockElem
 
 	_index += _src[_index].entryUnion.active.skipPrev;
 	return *this;
-}
-
-template<typename Type, size_t BlockElementCount>
-bool SkipArray<Type, BlockElementCount>::Iterator::operator==(const Iterator& other)
-{
-	return (_src == other._src) && (_index == other._index);
-}
-
-template<typename Type, size_t BlockElementCount>
-bool SkipArray<Type, BlockElementCount>::Iterator::operator!=(const Iterator& other)
-{
-	return !((_src == other._src) && (_index == other._index));
 }
 
 template<typename Type, size_t BlockElementCount>

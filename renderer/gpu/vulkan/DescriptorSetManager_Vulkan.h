@@ -24,7 +24,7 @@ struct DescriptorSetLayoutInfo
 			DESCRIPTOR_TYPE_SAMPLER
 		} type;
 
-		bool operator==(const DescriptorSetBindingInfo& other);
+		friend bool operator==(const DescriptorSetBindingInfo& lhs, const DescriptorSetBindingInfo& rhs);
 	};
 
 	std::vector<DescriptorSetBindingInfo> bindings;

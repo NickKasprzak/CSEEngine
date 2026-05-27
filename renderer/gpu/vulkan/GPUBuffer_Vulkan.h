@@ -9,12 +9,6 @@
 namespace CSERenderer
 {
 
-/*
-* decide whether or not data layout should
-* be built into the buffer or part of some
-* other class/system/container/etc.
-*/
-
 struct VulkanBufferInfo
 {
 	VkBufferUsageFlags usage;

@@ -1,6 +1,8 @@
 #pragma once
 #include "Expected.h"
 #include "Optional.h"
+#include "refcount/Ref.h"
+#include "refcount/RefCounted.h"
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -53,7 +55,6 @@ public:
 	~GPUDataLayout();
 
 	void operator=(const GPUDataLayout& other);
-	bool operator==(const GPUDataLayout& other);
 
 	const std::string& GetName() const;
 	uint32_t GetHashID() const;
@@ -66,6 +67,16 @@ private:
 	uint32_t _hashID;
 	size_t _size;
 	std::vector<DataLayoutMemberDescription> _members;
+
+	friend bool operator==(const GPUDataLayout& lhs, const GPUDataLayout& rhs)
+	{
+		return lhs._hashID == rhs._hashID;
+	}
+
+	friend bool operator!=(const GPUDataLayout& lhs, const GPUDataLayout& rhs)
+	{
+		return lhs._hashID != rhs._hashID;
+	}
 };
 
 class GPUDataLayoutBuilder
@@ -81,6 +92,21 @@ public:
 private:
 	std::string _name;
 	std::vector<DataLayoutMemberDescription> _members;
+};
+
+class GPUDataLayoutRef : public CSECore::RefCounted
+{
+public:
+	GPUDataLayoutRef();
+	GPUDataLayoutRef(const GPUDataLayout& layout);
+	~GPUDataLayoutRef();
+
+	void operator=(const GPUDataLayoutRef& other);
+
+	const GPUDataLayout& GetLayout();
+
+private:
+	GPUDataLayout _layout;
 };
 
 }

@@ -16,6 +16,8 @@ set(SOURCES
 	gpu/GPUBuffer.h
 	gpu/GPUDataLayout.h
 	gpu/GPUDataLayout.cpp
+	gpu/GPUDataLayoutRegistry.h
+	gpu/GPUDataLayoutRegistry.cpp
 	gpu/GPUImage.h
 	gpu/GPUPipeline.h
 	gpu/GPUPipelineCreateInfo.h
