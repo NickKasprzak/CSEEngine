@@ -1,5 +1,5 @@
 #pragma once
-#include "../GPUImageFormats.h"
+#include "../../GPUImageFormats.h"
 
 namespace CSERenderer
 {

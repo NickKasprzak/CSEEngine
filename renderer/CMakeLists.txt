@@ -12,6 +12,7 @@ set(SOURCES
 	RenderContext.cpp
 
 	gpu/GPUBackend.h
+	gpu/GPUBackend.cpp
 	gpu/GPUBackend_Impl.h
 	gpu/GPUBuffer.h
 	gpu/GPUDataLayout.h
@@ -21,6 +22,7 @@ set(SOURCES
 	gpu/GPUImage.h
 	gpu/GPUPipeline.h
 	gpu/GPUPipelineCreateInfo.h
+	gpu/GPUPipelineInputs.h
 
 	utility/PlatformWindowInfo_Renderer.h
 )
@@ -41,27 +43,31 @@ set(COMP_DEFS
 if(USE_VULKAN)
 
 	set(VULKAN_SOURCES
-		gpu/vulkan/Config_Vulkan.h
-		gpu/vulkan/DescriptorSetManager_Vulkan.h
-		gpu/vulkan/DescriptorSetManager_Vulkan.cpp
-		gpu/vulkan/GPUDevice_Vulkan.h
-		gpu/vulkan/GPUDevice_Vulkan.cpp
+		gpu/vulkan/internal/Config_Vulkan.h
+		gpu/vulkan/internal/DescriptorPool_Vulkan.h
+		gpu/vulkan/internal/DescriptorPool_Vulkan.cpp
+		gpu/vulkan/internal/GPUPipelineBuilder_Vulkan.h
+		gpu/vulkan/internal/GPUPipelineBuilder_Vulkan.cpp
+		gpu/vulkan/internal/GPUPipelineRegistry_Vulkan.h
+		gpu/vulkan/internal/GPUPipelineRegistry_Vulkan.cpp
+		gpu/vulkan/internal/RenderGraph_Vulkan.h
+		gpu/vulkan/internal/ShaderProcessor_Vulkan.h
+		gpu/vulkan/internal/ShaderProcessor_Vulkan.cpp
+		gpu/vulkan/internal/SSBOAllocator_Vulkan.h
+		gpu/vulkan/internal/SSBOAllocator_Vulkan.cpp
+		gpu/vulkan/internal/Utils_Vulkan.h
+		gpu/vulkan/internal/Vertex_Vulkan.h
+
 		gpu/vulkan/GPUBackend_Vulkan.h
 		gpu/vulkan/GPUBackend_Vulkan.cpp
 		gpu/vulkan/GPUBuffer_Vulkan.h
 		gpu/vulkan/GPUBuffer_Vulkan.cpp
+		gpu/vulkan/GPUDevice_Vulkan.h
+		gpu/vulkan/GPUDevice_Vulkan.cpp
 		gpu/vulkan/GPUImage_Vulkan.h
 		gpu/vulkan/GPUImage_Vulkan.cpp
 		gpu/vulkan/GPUPipeline_Vulkan.h
 		gpu/vulkan/GPUPipeline_Vulkan.cpp
-		gpu/vulkan/GPUPipelineBuilder_Vulkan.h
-		gpu/vulkan/GPUPipelineBuilder_Vulkan.cpp
-		gpu/vulkan/GPUPipelineManager_Vulkan.h
-		gpu/vulkan/GPUPipelineManager_Vulkan.cpp
-		gpu/vulkan/ShaderProcessor_Vulkan.h
-		gpu/vulkan/ShaderProcessor_Vulkan.cpp
-		gpu/vulkan/Utils_Vulkan.h
-		gpu/vulkan/Vertex_Vulkan.h
 	)
 
 	set(VULKAN_THIRD_PARTY_SOURCES

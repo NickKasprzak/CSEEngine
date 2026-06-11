@@ -1,6 +1,7 @@
 #pragma once
 #include "../GPUPipeline.h"
 #include "../GPUDataLayout.h"
+#include "../GPUDataLayoutRegistry.h"
 #include "volk.h"
 
 namespace CSERenderer
@@ -51,17 +52,22 @@ private:
 	VkFormat _stencilAttachmentFormat;
 };
 
+struct GPUPipelineParams_Vulkan
+{
+	VkDevice device;
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+	std::vector<CSECore::Ref<GPUDataLayout>>* ssboLayouts;
+	std::vector<PushConstantLayout>* pushConstantLayouts;
+	RenderAttachmentLayout* renderAttachmentLayout;
+	const PipelineInfo* pipelineInfo;
+};
+
 class GPUPipeline_Vulkan : public GPUPipeline
 {
 public:
 	GPUPipeline_Vulkan();
-	GPUPipeline_Vulkan(VkDevice device, 
-		VkPipeline pipeline, 
-		VkPipelineLayout layout, 
-		const std::vector<CSECore::Ref<GPUDataLayoutRef>>& ssboLayouts, 
-		const std::vector<PushConstantLayout>& pushConstantLayouts,
-		const RenderAttachmentLayout& renderAttachmentLayout,
-		const PipelineInfo& pipelineInfo);
+	GPUPipeline_Vulkan(GPUPipelineParams_Vulkan& params);
 	GPUPipeline_Vulkan(const GPUPipeline_Vulkan& other) = delete;
 	GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept;
 	virtual ~GPUPipeline_Vulkan();
@@ -71,7 +77,7 @@ public:
 
 	VkPipeline GetPipeline() const;
 	VkPipelineLayout GetPipelineLayout() const;
-	const std::vector<CSECore::Ref<GPUDataLayoutRef>>& GetSSBOLayouts() const;
+	const std::vector<CSECore::Ref<GPUDataLayout>>& GetSSBOLayouts() const;
 	const std::vector<PushConstantLayout>& GetPushConstantLayouts() const;
 	const RenderAttachmentLayout& GetRenderAttachmentLayout() const;
 	uint32_t GetHashID() const;
@@ -80,7 +86,7 @@ private:
 	VkDevice _device;
 	VkPipeline _pipeline;
 	VkPipelineLayout _layout;
-	std::vector<CSECore::Ref<GPUDataLayoutRef>> _ssboLayouts;
+	std::vector<CSECore::Ref<GPUDataLayout>> _ssboLayouts;
 	std::vector<PushConstantLayout> _pushConstantLayouts;
 	RenderAttachmentLayout _renderAttachmentLayout;
 	uint32_t _hashID;

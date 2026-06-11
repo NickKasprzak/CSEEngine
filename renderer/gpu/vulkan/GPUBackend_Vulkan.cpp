@@ -2,10 +2,10 @@
 #include "GPUBuffer_Vulkan.h"
 #include "GPUImage_Vulkan.h"
 #include "GPUPipeline_Vulkan.h"
-#include "GPUPipelineBuilder_Vulkan.h"
-#include "Vertex_Vulkan.h"
-#include "ShaderProcessor_Vulkan.h"
-#include "Utils_Vulkan.h"
+#include "internal/GPUPipelineBuilder_Vulkan.h"
+#include "internal/Vertex_Vulkan.h"
+#include "internal/ShaderProcessor_Vulkan.h"
+#include "internal/Utils_Vulkan.h"
 #include "../../utility/PlatformWindowInfo_Renderer.h"
 #include "Expected.h"
 #include "Assert.h"
@@ -30,11 +30,13 @@ VmaAllocationCreateFlags BufferUsageToVmaFlags(BufferUsageFlags usage);
 
 VkImageUsageFlags ImageUsageToVulkanUsageFlags(ImageUsageFlags usage);
 VmaAllocationCreateFlags ImageUsageToVmaFlags(ImageUsageFlags usage);
-VkFilter FilterToVkFilter(SamplerFilterMode filterMode);
-VkSamplerAddressMode AddressModeToVkAddressMode(SamplerAddressMode addressMode);
+VkImageViewType ImageArrayLayersToViewType(uint32_t arrayLayers);
+VkImageAspectFlags ImageUsageToImageAspectFlags(VkImageUsageFlags usageFlags);
+VkFilter FilterToVkFilter(SamplerState::SamplerFilterMode filterMode);
+VkSamplerAddressMode AddressModeToVkAddressMode(SamplerState::SamplerAddressMode addressMode);
 
 GPUBackend_Vulkan::GPUBackend_Vulkan()
-	: _device(), _windowSurface(), _swapchain(), _compositor(), _descriptorSetManager(), _pipelineManager(), _dataLayoutRegistry()
+	: _device(), _windowSurface(), _swapchain(), _currentFrame(0), _renderGraph(), _descriptorSetPool(), _pipelineRegistry(), _dataLayoutRegistry()
 {
 
 }
@@ -44,11 +46,16 @@ GPUBackend_Vulkan::~GPUBackend_Vulkan()
 
 }
 
+GPUBackend_Vulkan* GPUBackend_Vulkan::Instance_Vulkan()
+{
+	return static_cast<GPUBackend_Vulkan*>(Instance());
+}
+
 void GPUBackend_Vulkan::Initialize()
 {
 	_device.Initialize();
-	_descriptorSetManager.Initialize(_device.GetVkDevice());
-	_pipelineManager.Initialize(_device.GetVkDevice());
+	_descriptorSetPool.Initialize(_device.GetVkDevice());
+	_pipelineRegistry.Initialize(_device.GetVkDevice());
 }
 
 void GPUBackend_Vulkan::Dispose()
@@ -56,23 +63,47 @@ void GPUBackend_Vulkan::Dispose()
 	vkb::destroy_swapchain(_swapchain);
 	vkDestroySurfaceKHR(_device.GetVkInstance(), _windowSurface, nullptr);
 
-	_pipelineManager.Dispose();
-	_descriptorSetManager.Dispose();
+	_pipelineRegistry.Dispose();
+	_descriptorSetPool.Dispose();
 	_device.Dispose();
 }
 
-CSECore::Ref<GPUBuffer> GPUBackend_Vulkan::CreateBuffer(BufferUsageFlags usage, uint32_t size)
+uint32_t GPUBackend_Vulkan::GetCurrentFrame()
 {
-	VulkanBufferInfo bufferParams{};
-	bufferParams.usage = BufferUsageToVulkanUsageFlags(usage);
-	bufferParams.alloc = BufferUsageToVmaFlags(usage);
-	bufferParams.size = size;
+	return _currentFrame;
+}
+
+CSECore::Ref<GPUBuffer> GPUBackend_Vulkan::CreateBuffer(const BufferCreateInfo& createInfo)
+{
+	VkBufferUsageFlags usage = BufferUsageToVulkanUsageFlags(createInfo.usage);
 	uint32_t queueFamily = _device.GetGraphicsQueueFamilyIndex();
 
-	CSECore::Ref<GPUBuffer> bufferRef = CreateBuffer_Vulkan(&bufferParams, queueFamily, _device.GetVMAAllocator());
-	CSE_ASSERT(bufferRef.GetRawPointer() != nullptr, "Buffer creation failed.");
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.usage = usage;
+	bufferCreateInfo.size = createInfo.size;
+	bufferCreateInfo.queueFamilyIndexCount = 1;
+	bufferCreateInfo.pQueueFamilyIndices = &queueFamily;
+	bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	return bufferRef;
+	VmaAllocationCreateInfo allocCreateInfo{};
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocCreateInfo.flags = BufferUsageToVmaFlags(createInfo.usage);
+
+	VkBuffer buffer;
+	VmaAllocation allocation;
+	VkResult result = vmaCreateBuffer(_device.GetVMAAllocator(), &bufferCreateInfo, &allocCreateInfo, &buffer, &allocation, nullptr);
+	if (result != VK_SUCCESS)
+	{
+		switch (result)
+		{
+		default:
+			CSE_LOGE("Failed to create buffer. Reason: Unknown error.");
+		}
+		return CSECore::Ref<GPUBuffer>();
+	}
+
+	return CSECore::Ref<GPUBuffer>(new GPUBuffer_Vulkan(buffer, usage, createInfo.size, _device.GetVMAAllocator(), allocation));
 }
 
 void GPUBackend_Vulkan::BufferWrite(CSECore::Ref<GPUBuffer> buffer)
@@ -91,35 +122,70 @@ void GPUBackend_Vulkan::BufferCopy(CSECore::Ref<GPUBuffer> buffer)
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off buffer copy request to compositor.");
 }
 
-CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(ImageUsageFlags usage, ImageFormat format, uint32_t width, uint32_t height)
+CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(const ImageCreateInfo& createInfo)
 {
-	VulkanImageInfo imageParams{};
-	imageParams.usage = ImageUsageToVulkanUsageFlags(usage);
-	imageParams.format = ImageFormatToVkFormat(format);
-	imageParams.extent.width = width;
-	imageParams.extent.height = height;
-	imageParams.extent.depth = 1;
-	imageParams.mipLevels = 1;
-	imageParams.arrayLayers = 1;
-	imageParams.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageParams.alloc = ImageUsageToVmaFlags(usage);
-	imageParams.device = _device.GetVkDevice();
-	uint32_t queueFamily = _device.GetGraphicsQueueFamilyIndex();
+	VkImageUsageFlags usage = ImageUsageToVulkanUsageFlags(createInfo.usage);
+	VkFormat format = ImageFormatToVkFormat(createInfo.format);
+	VkImageAspectFlags aspect = ImageUsageToImageAspectFlags(createInfo.usage);
 
-	CSECore::Ref<GPUImage> imageRef = CreateImage_Vulkan(&imageParams, queueFamily, _device.GetVMAAllocator());
-	CSE_ASSERT(imageRef.GetRawPointer() != nullptr, "Image creation failed.");
+	VkImageCreateInfo imageCreateInfo{};
+	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageCreateInfo.usage = usage;
+	imageCreateInfo.format = format;
+	imageCreateInfo.extent.width = createInfo.width;
+	imageCreateInfo.extent.height = createInfo.height;
+	imageCreateInfo.mipLevels = 1;
+	imageCreateInfo.arrayLayers = 1;
+	imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-	return imageRef;
-}
+	VmaAllocationCreateInfo allocCreateInfo{};
+	allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocCreateInfo.flags = ImageUsageToVmaFlags(createInfo.usage);
 
-void GPUBackend_Vulkan::SetImageSampler(CSECore::Ref<GPUImage> image, SamplerFilterMode filter, SamplerAddressMode addressMode)
-{
-	GPUImage_Vulkan* vkImage = static_cast<GPUImage_Vulkan*>(image.GetRawPointer());
-	CSE_ASSERT(vkImage, "Couldn't set image sampler as the given image handle is null.");
+	VkImage image;
+	VmaAllocation allocation;
+	VkResult imageResult = vmaCreateImage(_device.GetVMAAllocator(), &imageCreateInfo, &allocCreateInfo, &image, &allocation, nullptr);
+	if (imageResult != VK_SUCCESS)
+	{
+		switch (imageResult)
+		{
+		default:
+			CSE_LOGE("Failed to create image. Reason: Unknown error.");
+		}
+		return CSECore::Ref<GPUImage>();
+	}
 
-	VkFilter vkFilter = FilterToVkFilter(filter);
-	VkSamplerAddressMode vkAddressMode = AddressModeToVkAddressMode(addressMode);
-	vkImage->SetSampler(vkFilter, vkAddressMode);
+	VkImageViewCreateInfo imageViewCreateInfo{};
+	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewCreateInfo.image = image;
+	imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	imageViewCreateInfo.format = format;
+	imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+	imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+	imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+	imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+	imageViewCreateInfo.subresourceRange.aspectMask = aspect;
+	imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	imageViewCreateInfo.subresourceRange.layerCount = 1; 
+	imageViewCreateInfo.subresourceRange.baseMipLevel = 1;
+	imageViewCreateInfo.subresourceRange.levelCount = 1;
+
+	VkImageView imageView{};
+	VkResult imageViewResult = vkCreateImageView(_device.GetVkDevice(), &imageViewCreateInfo, nullptr, &imageView);
+	if (imageViewResult != VK_SUCCESS)
+	{
+		switch (imageViewResult)
+		{
+		default:
+			CSE_LOGE("Failed to create image view. Reason: Unknown error.");
+		}
+		return CSECore::Ref<GPUImage>();
+	}
+
+	return CSECore::Ref<GPUImage>(new GPUImage_Vulkan(_device.GetVkDevice(), image, imageView, usage, VK_IMAGE_VIEW_TYPE_2D, _device.GetVMAAllocator(), allocation));
 }
 
 void GPUBackend_Vulkan::ImageCopy(CSECore::Ref<GPUImage> image)
@@ -136,7 +202,7 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 
 	// Check if a pipeline with the required state already exists
 
-	CSECore::Ref<GPUPipeline> existingPipeline = _pipelineManager.GetGraphicsPipeline(pipelineInfo);
+	CSECore::Ref<GPUPipeline> existingPipeline = _pipelineRegistry.GetGraphicsPipeline(pipelineInfo);
 	if (existingPipeline.GetRawPointer() != nullptr)
 	{
 		return existingPipeline;
@@ -148,7 +214,7 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 	if (shaderProcessResult.HasUnexpected())
 	{
 		CSE_LOGE("Failed to create graphics pipeline. Reason: " << shaderProcessResult.GetUnexpected());
-		return CSECore::MakeEmptyRef<GPUPipeline>();
+		return CSECore::Ref<GPUPipeline>();
 	}
 	ShaderLayoutInfo* shaderLayout = shaderProcessResult.GetExpectedPtr();
 
@@ -157,23 +223,23 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 	if (ValidateShaderDescriptorSetLayout(shaderLayout->descriptorSetLayoutInfo) == false)
 	{
 		CSE_LOGE("Failed to create graphics pipeline. Reason: Unsupported descriptor set layout.");
-		return CSECore::MakeEmptyRef<GPUPipeline>();
+		return CSECore::Ref<GPUPipeline>();
 	}
 
 	if (ValidateShaderVertexAttributes(shaderLayout->vertexAttributes) == false)
 	{
 		CSE_LOGE("Failed to create graphics pipeline. Reason: Unsupported vertex layout.");
-		return CSECore::MakeEmptyRef<GPUPipeline>();
+		return CSECore::Ref<GPUPipeline>();
 	}
 
 	for (int i = 0; i < shaderLayout->ssboLayouts.size(); i++)
 	{
-		CSECore::Ref<GPUDataLayoutRef> layoutRef = _dataLayoutRegistry.GetDataLayout(shaderLayout->ssboLayouts[i].GetName());
+		CSECore::Ref<GPUDataLayout> layoutRef = _dataLayoutRegistry.GetDataLayout(shaderLayout->ssboLayouts[i].GetNameHash());
 		if (layoutRef.GetRawPointer() != nullptr &&
-			layoutRef->GetLayout() == shaderLayout->ssboLayouts[i])
+			*layoutRef.GetRawPointer() == shaderLayout->ssboLayouts[i])
 		{
-			CSE_LOGE("Failed to create graphics pipeline. Reason: An SSBO input layout with the name " + shaderLayout->ssboLayouts[i].GetName() + " already exists with a different layout.");
-			return CSECore::MakeEmptyRef<GPUPipeline>();
+			CSE_LOGE("Failed to create graphics pipeline. Reason: An SSBO input layout with a given name already exists with a different layout.");
+			return CSECore::Ref<GPUPipeline>();
 		}
 	}
 
@@ -181,7 +247,7 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 
 	GPUPipelineBuilder_Vulkan builder(_device.GetVkDevice());
 	builder.SetGraphicsShaderInfo(pipelineInfo.shaders[0], pipelineInfo.shaders[1]);
-	builder.SetLayoutInfo(_descriptorSetManager.GetDescriptorSetLayout(), shaderLayout->pushConstantLayouts);
+	builder.SetLayoutInfo(_descriptorSetPool.GetDescriptorSetLayout(), shaderLayout->pushConstantLayouts);
 	builder.SetViewportInfo(*pipelineInfo.viewportInfo);
 	builder.SetRasterizationInfo(*pipelineInfo.rasterizationInfo);
 	builder.SetMultisampleInfo(*pipelineInfo.multisampleInfo);
@@ -194,13 +260,13 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 	if (buildResult.HasUnexpected())
 	{
 		CSE_LOGE("Failed to create graphics pipeline. Reason: " << buildResult.GetUnexpected());
-		return CSECore::MakeEmptyRef<GPUPipeline>();
+		return CSECore::Ref<GPUPipeline>();
 	}
 	GPUPipelineBuilderResult_Vulkan* pipelineHandles = buildResult.GetExpectedPtr();
 
 	// Register SSBO layouts in the layout registry
 
-	std::vector<CSECore::Ref<GPUDataLayoutRef>> ssboLayoutRefs;
+	std::vector<CSECore::Ref<GPUDataLayout>> ssboLayoutRefs;
 	for (int i = 0; i < shaderLayout->ssboLayouts.size(); i++)
 	{
 		ssboLayoutRefs.push_back(_dataLayoutRegistry.AddDataLayout(shaderLayout->ssboLayouts[i]));
@@ -220,16 +286,28 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 
 	// Create and register the GPUPipeline object
 
-	GPUPipeline_Vulkan pipeline(_device.GetVkDevice(),
-		pipelineHandles->pipeline,
-		pipelineHandles->layout,
-		ssboLayoutRefs,
-		shaderLayout->pushConstantLayouts,
-		attachments,
-		pipelineInfo);
-	CSECore::Ref<GPUPipeline> pipelineRef = _pipelineManager.RegisterGraphicsPipeline(pipeline);
+	GPUPipelineParams_Vulkan pipelineParams{};
+	pipelineParams.device = _device.GetVkDevice();
+	pipelineParams.pipeline = pipelineHandles->pipeline;
+	pipelineParams.layout = pipelineHandles->layout;
+	pipelineParams.ssboLayouts = &ssboLayoutRefs;
+	pipelineParams.pushConstantLayouts = &shaderLayout->pushConstantLayouts;
+	pipelineParams.renderAttachmentLayout = &attachments;
+	pipelineParams.pipelineInfo = &pipelineInfo;
+
+	CSECore::Ref<GPUPipeline> pipelineRef = _pipelineRegistry.RegisterGraphicsPipeline(pipelineParams);
 
 	return pipelineRef;
+}
+
+CSECore::Ref<SSBO_Vulkan> GPUBackend_Vulkan::CreateSSBO(size_t size)
+{
+	return _ssboAllocator.CreateSSBO(size);
+}
+
+CSECore::Ref<SSBODescriptor> GPUBackend_Vulkan::CreateSSBODescriptor(CSECore::Ref<SSBO_Vulkan> ssbo)
+{
+	return _descriptorSetPool.CreateSSBODescriptor(ssbo);
 }
 
 void GPUBackend_Vulkan::SetTargetWindow(const CSECore::Any<64>& windowInfo)
@@ -414,28 +492,63 @@ VmaAllocationCreateFlags ImageUsageToVmaFlags(ImageUsageFlags usage)
 	return flags;
 }
 
-VkFilter FilterToVkFilter(SamplerFilterMode filterMode)
+VkImageViewType ImageArrayLayersToViewType(uint32_t arrayLayers)
+{
+	CSE_ASSERT(arrayLayers != 0, "Can't use an array layer count of 0.");
+
+	if (arrayLayers == 1)
+	{
+		return VK_IMAGE_VIEW_TYPE_2D;
+	}
+	else if (arrayLayers == 6)
+	{
+		return VK_IMAGE_VIEW_TYPE_CUBE;
+	}
+	else if (arrayLayers % 6 == 0)
+	{
+		return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+	}
+	return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+}
+
+VkImageAspectFlags ImageUsageToImageAspectFlags(VkImageUsageFlags usageFlags)
+{
+	VkImageAspectFlags flags = 0;
+
+	if (usageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+	{
+		flags |= VK_IMAGE_ASPECT_COLOR_BIT;
+	}
+	else if (usageFlags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+	{
+		flags |= (VK_IMAGE_ASPECT_DEPTH_BIT & VK_IMAGE_ASPECT_STENCIL_BIT);
+	}
+
+	return flags;
+}
+
+VkFilter FilterToVkFilter(SamplerState::SamplerFilterMode filterMode)
 {
 	switch (filterMode)
 	{
-	case FILTER_NEAREST:
+	case SamplerState::SamplerFilterMode::FILTER_NEAREST:
 		return VK_FILTER_NEAREST;
-	case FILTER_LINEAR:
+	case SamplerState::SamplerFilterMode::FILTER_LINEAR:
 		return VK_FILTER_LINEAR;
 	default:
 		return VK_FILTER_MAX_ENUM;
 	}
 }
 
-VkSamplerAddressMode AddressModeToVkAddressMode(SamplerAddressMode addressMode)
+VkSamplerAddressMode AddressModeToVkAddressMode(SamplerState::SamplerAddressMode addressMode)
 {
 	switch (addressMode)
 	{
-	case ADDRESS_MODE_CLAMP_TO_BORDER:
+	case SamplerState::SamplerAddressMode::ADDRESS_MODE_CLAMP_TO_BORDER:
 		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-	case ADDRESS_MODE_CLAMP_TO_EDGE:
+	case SamplerState::SamplerAddressMode::ADDRESS_MODE_CLAMP_TO_EDGE:
 		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-	case ADDRESS_MODE_REPEAT:
+	case SamplerState::SamplerAddressMode::ADDRESS_MODE_REPEAT:
 		return VK_SAMPLER_ADDRESS_MODE_REPEAT;
 	default:
 		return VK_SAMPLER_ADDRESS_MODE_MAX_ENUM;

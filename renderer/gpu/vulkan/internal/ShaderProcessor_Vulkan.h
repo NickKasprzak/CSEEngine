@@ -1,6 +1,6 @@
 #pragma once
-#include "GPUPipeline_Vulkan.h"
-#include "DescriptorSetManager_Vulkan.h"
+#include "../GPUPipeline_Vulkan.h"
+#include "DescriptorPool_Vulkan.h"
 #include "Expected.h"
 #include <string>
 #include <vector>

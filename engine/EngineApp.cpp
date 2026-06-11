@@ -80,7 +80,7 @@ void EngineApp::Initialize(std::string name)
 	_renderContext.Initialize();
 	CSECore::Any<64> winInfoApp = GetWindow()->GetPlatformWindowInfo();
 	CSECore::Any<64> winInfoRenderer = PlatformWindowInfo_AppToRenderer(winInfoApp);
-	_renderContext.GetBackend()->SetTargetWindow(winInfoRenderer);
+	_renderContext.SetTargetWindow(winInfoRenderer);
 
 	PostInitialize();
 }

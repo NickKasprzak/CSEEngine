@@ -8,29 +8,17 @@
 namespace CSERenderer
 {
 
-struct VulkanImageInfo
-{
-	VkImageUsageFlags usage;
-	VkFormat format;
-	VkExtent3D extent;
-	uint32_t mipLevels;
-	uint32_t arrayLayers;
-	VkSampleCountFlagBits samples;
-	VmaAllocationCreateFlags alloc;
-	VkImageCreateFlags createFlags;
-	VkDevice device;
-};
-
 class GPUImage_Vulkan : public GPUImage
 {
 public:
 	GPUImage_Vulkan();
-	GPUImage_Vulkan(VkImage image,
+	GPUImage_Vulkan(VkDevice device,
+		VkImage image,
 		VkImageView imageView,
-		VulkanImageInfo& imageInfo,
+		VkImageUsageFlags usage,
+		VkImageViewType imageViewType,
 		VmaAllocator allocator,
-		VmaAllocation allocation,
-		uint32_t ID);
+		VmaAllocation allocation);
 	GPUImage_Vulkan(const GPUImage_Vulkan& other) = delete;
 	virtual ~GPUImage_Vulkan();
 
@@ -42,20 +30,15 @@ public:
 	VkImageViewType GetImageViewType();
 	uint32_t GetID();
 
-	void SetSampler(VkFilter filter, VkSamplerAddressMode addressMode);
-	VkSampler GetSampler();
-
 private:
+	VkDevice _device;
 	VkImage _image;
 	VkImageView _imageView;
-	VulkanImageInfo _info;
+	VkImageUsageFlags _usage;
+	VkImageViewType _imageViewType;
 	VmaAllocator _allocator;
 	VmaAllocation _allocation;
 	uint32_t _ID;
-	VkSampler _sampler;
 };
-
-// TODO: Move to whatever is pooling images
-CSECore::Ref<GPUImage> CreateImage_Vulkan(VulkanImageInfo* params, uint32_t queueFamily, VmaAllocator allocator);
 
 }

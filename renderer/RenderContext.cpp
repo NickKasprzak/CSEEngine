@@ -6,7 +6,6 @@ namespace CSERenderer
 {
 
 RenderContext::RenderContext()
-	: _backend(nullptr)
 {
 
 }
@@ -18,22 +17,22 @@ RenderContext::~RenderContext()
 
 void RenderContext::Initialize()
 {
-	_backend = new GPUBackend_Impl();
-	_backend->Initialize();
+	GPUBackend::InitializeBackend<GPUBackend_Impl>();
 }
 
 void RenderContext::Dispose()
 {
-	if (_backend != nullptr)
-	{
-		_backend->Dispose();
-		delete _backend;
-	}
+	GPUBackend::DisposeBackend();
 }
 
-GPUBackend* RenderContext::GetBackend()
+void RenderContext::SetTargetWindow(const CSECore::Any<64>& windowInfo)
 {
-	return _backend;
+	GPUBackend::Instance()->SetTargetWindow(windowInfo);
+}
+
+void RenderContext::UpdateWindowSurfaceSize(uint16_t width, uint16_t height)
+{
+	GPUBackend::Instance()->UpdateWindowSurfaceSize(width, height);
 }
 
 }

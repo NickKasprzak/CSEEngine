@@ -15,10 +15,10 @@ public:
 	void Initialize();
 	void Dispose();
 
-	GPUBackend* GetBackend();
+	void SetTargetWindow(const CSECore::Any<64>& windowInfo);
+	void UpdateWindowSurfaceSize(uint16_t width, uint16_t height);
 
 private:
-	GPUBackend* _backend;
 };
 
 }

@@ -10,7 +10,7 @@ set(SOURCES
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-target_link_libraries(${PROJECT_NAME} PUBLIC CSEEngine)
-target_include_directories(${PROJECT_NAME} PUBLIC "../../engine")
+target_link_libraries(${PROJECT_NAME} PUBLIC CSERenderer CSEEngine)
+target_include_directories(${PROJECT_NAME} PUBLIC "../../renderer" "../../engine" )
 file(REMOVE_RECURSE ${CMAKE_CURRENT_BINARY_DIR}/testdir)
 file(COPY "testdir" DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

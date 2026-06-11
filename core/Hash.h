@@ -61,4 +61,14 @@ static uint32_t FNVHash<std::string>(const std::string& typeRef)
 	return CSECore_Private::FNVHash1A_32(typeRef.data(), typeRef.size());
 }
 
+static uint32_t FNVHash(const char* typeRef)
+{
+	return CSECore_Private::FNVHash1A_32(typeRef, strlen(typeRef));
+}
+
+static uint32_t FNVHash(const char* typeRef, size_t size)
+{
+	return CSECore_Private::FNVHash1A_32(typeRef, size);
+}
+
 }

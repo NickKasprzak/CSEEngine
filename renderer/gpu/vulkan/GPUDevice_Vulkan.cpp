@@ -1,5 +1,5 @@
 #include "GPUDevice_Vulkan.h"
-#include "Config_Vulkan.h"
+#include "internal/Config_Vulkan.h"
 #include "Expected.h"
 #include "Logger.h"
 #include "CSEAssert.h"

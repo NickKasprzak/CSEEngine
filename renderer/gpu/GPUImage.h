@@ -1,5 +1,7 @@
 #pragma once
+#include "GPUImageFormats.h"
 #include "refcount/RefCounted.h"
+#include "Optional.h"
 
 namespace CSERenderer
 {
@@ -13,17 +15,28 @@ enum ImageUsageFlags
 	IMAGE_USAGE_MAPPED = 0x10,
 };
 
-enum SamplerFilterMode
+struct SamplerState
 {
-	FILTER_NEAREST,
-	FILTER_LINEAR
+	enum SamplerFilterMode
+	{
+		FILTER_NEAREST,
+		FILTER_LINEAR
+	} filterMode;
+
+	enum SamplerAddressMode
+	{
+		ADDRESS_MODE_CLAMP_TO_BORDER,
+		ADDRESS_MODE_CLAMP_TO_EDGE,
+		ADDRESS_MODE_REPEAT
+	} addressMode;
 };
 
-enum SamplerAddressMode
+struct ImageCreateInfo
 {
-	ADDRESS_MODE_CLAMP_TO_BORDER,
-	ADDRESS_MODE_CLAMP_TO_EDGE,
-	ADDRESS_MODE_REPEAT
+	ImageUsageFlags usage;
+	ImageFormat format;
+	uint32_t width;
+	uint32_t height;
 };
 
 class GPUImage : public CSECore::RefCounted

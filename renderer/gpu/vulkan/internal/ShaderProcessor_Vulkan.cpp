@@ -69,8 +69,11 @@ CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> P
 
 CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block);
 VkFormat SpvReflectFormatToVkFormat(SpvReflectFormat spvFormat);
-DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits numTraits);
+DataLayoutMemberType SpvOpToMemberType(SpvOp op, SpvReflectNumericTraits numTraits);
+DataLayoutMemberType SpvTypeFlagsToMemberType(SpvReflectTypeFlags flags, SpvReflectNumericTraits numTraits);
 DescriptorSetLayoutInfo::DescriptorSetBindingInfo::DescriptorType SpvReflectDescriptorTypeToDescriptorType(SpvReflectDescriptorType descType);
+size_t MemberTypeToSize(DataLayoutMemberType type);
+size_t MemberTypeToAlignment(DataLayoutMemberType type);
 
 CSECore::Expected<ShaderLayoutInfo, std::string> ProcessGraphicsShaderLayout(const std::string& vertexShaderCode, const std::string& fragmentShaderCode)
 {
@@ -190,11 +193,16 @@ CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> P
 	spvReflectEnumerateInputVariables(&module, &inputVariableCount, nullptr);
 	std::vector<SpvReflectInterfaceVariable*> inputVariables;
 	inputVariables.resize(inputVariableCount);
-	spvReflectEnumerateInputVariables(&module, &inputVariableCount, nullptr);
+	spvReflectEnumerateInputVariables(&module, &inputVariableCount, inputVariables.data());
 
 	for (int i = 0; i < inputVariableCount; i++)
 	{
 		SpvReflectInterfaceVariable* input = inputVariables[i];
+
+		if (input->built_in != -1)
+		{
+			continue;
+		}
 
 		VkFormat format = SpvReflectFormatToVkFormat(input->format);
 		if (format == VK_FORMAT_UNDEFINED)
@@ -221,18 +229,30 @@ CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const Sp
 	for (int i = 0; i < block.member_count; i++)
 	{
 		const SpvReflectBlockVariable& member = block.members[i];
-
 		std::string name(member.name);
-		size_t size = member.size;
-		size_t offset = member.offset;
-		DataLayoutMemberType type = SPVOpToMemberType(member.type_description->op, member.numeric);
-		
-		if (type == MEMBER_TYPE_NULL)
+		uint32_t arrayLength = 0;
+		DataLayoutMemberType type = MEMBER_TYPE_NULL;
+
+		if (member.type_description->op == SpvOpTypeArray || member.type_description->op == SpvOpTypeRuntimeArray)
 		{
-			return CSECore::CreateUnexpected<GPUDataLayout, std::string>("Encountered an unsupported member type.");
+			if (member.type_description->op == SpvOpTypeRuntimeArray)
+			{
+				arrayLength = RUNTIME_ARRAY_LENGTH;
+			}
+			else if (member.type_description->op == SpvOpTypeArray)
+			{
+				arrayLength = member.array.dims[0];
+			}
+
+			type = SpvTypeFlagsToMemberType(member.type_description->type_flags, member.numeric);
+		}
+		else if (member.type_description->op != SpvOpTypeArray && member.type_description->op != SpvOpTypeRuntimeArray)
+		{
+			arrayLength = 1;
+			type = SpvOpToMemberType(member.type_description->op, member.numeric);
 		}
 
-		if (type == DataLayoutMemberType::MEMBER_TYPE_STRUCT || type == DataLayoutMemberType::MEMBER_TYPE_ARRAY)
+		if (type == MEMBER_TYPE_STRUCT)
 		{
 			CSECore::Expected<GPUDataLayout, std::string> structLayoutResult = CreateDataLayoutFromBlock(member);
 			if (structLayoutResult.HasUnexpected())
@@ -241,11 +261,18 @@ CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const Sp
 			}
 
 			GPUDataLayout* layoutPtr = structLayoutResult.GetExpectedPtr();
-			builder.AppendMember(name, size, offset, type, layoutPtr);
+			builder.AppendStructMember(name, arrayLength, layoutPtr);
+			continue;
+		}
+		else if (type != MEMBER_TYPE_STRUCT)
+		{
+			size_t size = MemberTypeToSize(type);
+			size_t alignment = MemberTypeToAlignment(type);
+			builder.AppendPrimitiveMember(name, size, alignment, arrayLength, type);
 			continue;
 		}
 
-		builder.AppendMember(name, size, offset, type, nullptr);
+		return CSECore::CreateUnexpected<GPUDataLayout, std::string>("Encountered an unsupported member type.");
 	}
 
 	return CSECore::CreateExpected<GPUDataLayout, std::string>(builder.Build());
@@ -268,7 +295,7 @@ VkFormat SpvReflectFormatToVkFormat(SpvReflectFormat spvFormat)
 	}
 }
 
-DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
+DataLayoutMemberType SpvOpToMemberType(SpvOp op, SpvReflectNumericTraits numTraits)
 {
 	switch (op)
 	{
@@ -277,7 +304,7 @@ DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
 	case SpvOpTypeFloat:
 		return MEMBER_TYPE_FLOAT;
 	case SpvOpTypeVector:
-		switch (traits.vector.component_count)
+		switch (numTraits.vector.component_count)
 		{
 		case 3:
 			return MEMBER_TYPE_VEC3;
@@ -287,12 +314,12 @@ DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
 			return MEMBER_TYPE_NULL;
 		}
 	case SpvOpTypeMatrix:
-		if (traits.matrix.column_count == 3 && traits.matrix.row_count == 3)
+		if (numTraits.matrix.column_count == 3 && numTraits.matrix.row_count == 3)
 		{
 			return MEMBER_TYPE_MAT3;
 		}
 
-		else if (traits.matrix.column_count == 4 && traits.matrix.row_count == 4)
+		else if (numTraits.matrix.column_count == 4 && numTraits.matrix.row_count == 4)
 		{
 			return MEMBER_TYPE_MAT4;
 		}
@@ -300,10 +327,98 @@ DataLayoutMemberType SPVOpToMemberType(SpvOp op, SpvReflectNumericTraits traits)
 		return MEMBER_TYPE_NULL;
 	case SpvOpTypeStruct:
 		return MEMBER_TYPE_STRUCT;
-	case SpvOpTypeRuntimeArray:
-		return MEMBER_TYPE_ARRAY;
 	default:
 		return MEMBER_TYPE_NULL;
+	}
+}
+
+DataLayoutMemberType SpvTypeFlagsToMemberType(SpvReflectTypeFlags flags, SpvReflectNumericTraits numTraits)
+{
+	if (flags & SPV_REFLECT_TYPE_FLAG_INT)
+	{
+		return MEMBER_TYPE_INT;
+	}
+
+	else if (flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
+	{
+		return MEMBER_TYPE_FLOAT;
+	}
+
+	else if (flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+	{
+		switch (numTraits.vector.component_count)
+		{
+		case 3:
+			return MEMBER_TYPE_VEC3;
+		case 4:
+			return MEMBER_TYPE_VEC4;
+		default:
+			return MEMBER_TYPE_NULL;
+		}
+	}
+
+	else if (flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+	{
+		if (numTraits.matrix.column_count == 3 && numTraits.matrix.row_count == 3)
+		{
+			return MEMBER_TYPE_MAT3;
+		}
+
+		else if (numTraits.matrix.column_count == 4 && numTraits.matrix.row_count == 4)
+		{
+			return MEMBER_TYPE_MAT4;
+		}
+
+		return MEMBER_TYPE_NULL;
+	}
+
+	else if (flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
+	{
+		return MEMBER_TYPE_STRUCT;
+	}
+
+	return MEMBER_TYPE_NULL;
+}
+
+size_t MemberTypeToSize(DataLayoutMemberType type)
+{
+	switch (type)
+	{
+	case MEMBER_TYPE_INT:
+		return 4;
+	case MEMBER_TYPE_FLOAT:
+		return 4;
+	case MEMBER_TYPE_VEC3:
+		return 12;
+	case MEMBER_TYPE_VEC4:
+		return 16;
+	case MEMBER_TYPE_MAT3:
+		return 48;
+	case MEMBER_TYPE_MAT4:
+		return 64;
+	default:
+		return 0;
+	}
+}
+
+size_t MemberTypeToAlignment(DataLayoutMemberType type)
+{
+	switch (type)
+	{
+	case MEMBER_TYPE_INT:
+		return 4;
+	case MEMBER_TYPE_FLOAT:
+		return 4;
+	case MEMBER_TYPE_VEC3:
+		return 16;
+	case MEMBER_TYPE_VEC4:
+		return 16;
+	case MEMBER_TYPE_MAT3:
+		return 16;
+	case MEMBER_TYPE_MAT4:
+		return 16;
+	default:
+		return 0;
 	}
 }
 

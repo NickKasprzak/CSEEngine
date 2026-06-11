@@ -17,22 +17,16 @@ GPUPipeline_Vulkan::GPUPipeline_Vulkan()
 
 }
 
-GPUPipeline_Vulkan::GPUPipeline_Vulkan(VkDevice device,
-	VkPipeline pipeline,
-	VkPipelineLayout layout,
-	const std::vector<CSECore::Ref<GPUDataLayoutRef>>& ssboLayouts,
-	const std::vector<PushConstantLayout>& pushConstantLayouts,
-	const RenderAttachmentLayout& renderAttachmentLayout,
-	const PipelineInfo& pipelineInfo)
-	: _device(device), 
-	_pipeline(pipeline),
-	_layout(layout),
-	_ssboLayouts(ssboLayouts),
-	_pushConstantLayouts(pushConstantLayouts),
-	_renderAttachmentLayout(renderAttachmentLayout),
+GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipelineParams_Vulkan& params)
+	: _device(params.device), 
+	_pipeline(params.pipeline),
+	_layout(params.layout),
+	_ssboLayouts(*params.ssboLayouts),
+	_pushConstantLayouts(*params.pushConstantLayouts),
+	_renderAttachmentLayout(*params.renderAttachmentLayout),
 	_hashID(UINT32_MAX)
 {
-	_hashID = CSECore::FNVHash(pipelineInfo);
+	_hashID = CSECore::FNVHash(*params.pipelineInfo);
 }
 
 GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept
@@ -104,7 +98,7 @@ VkPipelineLayout GPUPipeline_Vulkan::GetPipelineLayout() const
 	return _layout;
 }
 
-const std::vector<CSECore::Ref<GPUDataLayoutRef>>& GPUPipeline_Vulkan::GetSSBOLayouts() const
+const std::vector<CSECore::Ref<GPUDataLayout>>& GPUPipeline_Vulkan::GetSSBOLayouts() const
 {
 	return _ssboLayouts;
 }
