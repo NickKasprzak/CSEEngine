@@ -1,7 +1,5 @@
 #pragma once
 #include "GPUImageFormats.h"
-#include "refcount/RefCounted.h"
-#include "Optional.h"
 
 namespace CSERenderer
 {
@@ -37,12 +35,6 @@ struct ImageCreateInfo
 	ImageFormat format;
 	uint32_t width;
 	uint32_t height;
-};
-
-class GPUImage : public CSECore::RefCounted
-{
-public:
-	virtual ~GPUImage() {};
 };
 
 }

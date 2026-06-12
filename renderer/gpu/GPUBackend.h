@@ -1,13 +1,19 @@
 #pragma once
-#include "GPUBuffer.h"
-#include "GPUImage.h"
-#include "GPUImageFormats.h"
-#include "GPUPipeline.h"
+#include "GPUBufferCreateInfo.h"
+#include "GPUImageCreateInfo.h"
+#include "GPUPipelineCreateInfo.h"
+#include "GPUDataLayout.h"
 #include "Any.h"
 #include "refcount/Ref.h"
 
 namespace CSERenderer
 {
+
+class GPUBuffer;
+class GPUImage;
+class GPUPipeline;
+class GPUPipelineData;
+class GPUPipelineInputs;
 
 class GPUBackend
 {
@@ -30,7 +36,7 @@ public:
 	virtual void ImageCopy(CSECore::Ref<GPUImage> image) = 0;
 
 	virtual CSECore::Ref<GPUPipeline> CreateGraphicsPipeline(const PipelineInfo& pipelineInfo) = 0;
-	virtual void CreateGraphicsPipelineInputs() = 0;
+	virtual CSECore::Ref<GPUPipelineData> CreatePipelineData(CSECore::Ref<GPUDataLayout> dataLayout) = 0;
 
 	virtual void BindPipeline() = 0;
 	virtual void BindPipelineInputs() = 0;

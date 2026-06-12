@@ -1,6 +1,5 @@
 #pragma once
-#include "../GPUImage.h"
-#include "refcount/Ref.h"
+#include "refcount/RefCounted.h"
 #include "volk.h"
 #include "vk_mem_alloc.h"
 #include <cstdint>
@@ -8,21 +7,21 @@
 namespace CSERenderer
 {
 
-class GPUImage_Vulkan : public GPUImage
+class GPUImage : public CSECore::RefCounted
 {
 public:
-	GPUImage_Vulkan();
-	GPUImage_Vulkan(VkDevice device,
+	GPUImage();
+	GPUImage(VkDevice device,
 		VkImage image,
 		VkImageView imageView,
 		VkImageUsageFlags usage,
 		VkImageViewType imageViewType,
 		VmaAllocator allocator,
 		VmaAllocation allocation);
-	GPUImage_Vulkan(const GPUImage_Vulkan& other) = delete;
-	virtual ~GPUImage_Vulkan();
+	GPUImage(const GPUImage& other) = delete;
+	virtual ~GPUImage();
 
-	void operator=(const GPUImage_Vulkan& other) = delete;
+	void operator=(const GPUImage& other) = delete;
 
 	VkImage GetImageHandle();
 	VkImageView GetImageViewHandle();

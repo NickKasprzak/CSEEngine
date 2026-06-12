@@ -357,4 +357,24 @@ GPUDataLayout GPUDataLayoutBuilder::Build()
 	return GPUDataLayout(_name, paddedSize, _runningAlignment, _members);
 }
 
+GPUDataLayoutView GetLayoutView(GPUDataLayout* layout, std::initializer_list<LayoutViewNavNode> path)
+{
+	GPUDataLayoutView view(layout);
+	auto arr = path.begin();
+	for (int i = 0; i < path.size(); i++)
+	{
+		auto elem = arr[i];
+
+		if (elem.type == NAV_MEMBER)
+		{
+			view = view.GetMember(elem.value);
+		}
+		else if (elem.type == NAV_ARRAY)
+		{
+			view = view.GetArrayIndex(elem.value);
+		}
+	}
+	return view;
+}
+
 }

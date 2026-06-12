@@ -7,7 +7,7 @@ namespace CSERenderer
 
 uint32_t MakeImageID();
 
-GPUImage_Vulkan::GPUImage_Vulkan()
+GPUImage::GPUImage()
 	: _device(VK_NULL_HANDLE),
 	_image(VK_NULL_HANDLE), 
 	_imageView(VK_NULL_HANDLE), 
@@ -20,7 +20,7 @@ GPUImage_Vulkan::GPUImage_Vulkan()
 
 }
 
-GPUImage_Vulkan::GPUImage_Vulkan(VkDevice device,
+GPUImage::GPUImage(VkDevice device,
 	VkImage image,
 	VkImageView imageView,
 	VkImageUsageFlags usage,
@@ -39,7 +39,7 @@ GPUImage_Vulkan::GPUImage_Vulkan(VkDevice device,
 	_ID = MakeImageID();
 }
 
-GPUImage_Vulkan::~GPUImage_Vulkan()
+GPUImage::~GPUImage()
 {
 	if (_image != VK_NULL_HANDLE)
 	{
@@ -48,27 +48,27 @@ GPUImage_Vulkan::~GPUImage_Vulkan()
 	}
 }
 
-VkImage GPUImage_Vulkan::GetImageHandle()
+VkImage GPUImage::GetImageHandle()
 {
 	return _image;
 }
 
-VkImageView GPUImage_Vulkan::GetImageViewHandle()
+VkImageView GPUImage::GetImageViewHandle()
 {
 	return _imageView;
 }
 
-VkImageUsageFlags GPUImage_Vulkan::GetImageUsage()
+VkImageUsageFlags GPUImage::GetImageUsage()
 {
 	return _usage;
 }
 
-VkImageViewType GPUImage_Vulkan::GetImageViewType()
+VkImageViewType GPUImage::GetImageViewType()
 {
 	return _imageViewType;
 }
 
-uint32_t GPUImage_Vulkan::GetID()
+uint32_t GPUImage::GetID()
 {
 	return _ID;
 }

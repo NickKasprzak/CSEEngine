@@ -19,7 +19,7 @@ class SSBODescriptor : public CSECore::RefCounted
 public:
 	~SSBODescriptor();
 
-	SSBO_Vulkan* GetSSBO();
+	const SSBO_Vulkan* GetSSBO();
 	uint32_t GetDescriptorID();
 
 private:
@@ -39,7 +39,7 @@ class SamplerDescriptor : public CSECore::RefCounted
 public:
 	~SamplerDescriptor();
 
-	GPUImage* GetImage();
+	const GPUImage* GetImage();
 	VkImageLayout GetRequiredImageLayout();
 	VkSampler GetSampler();
 	uint32_t GetDescriptorID();

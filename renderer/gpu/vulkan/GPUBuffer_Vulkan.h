@@ -1,6 +1,5 @@
 #pragma once
-#include "../GPUBuffer.h"
-#include "refcount/Ref.h"
+#include "refcount/RefCounted.h"
 #include "volk.h"
 #include "vk_mem_alloc.h"
 #include <cstdint>
@@ -8,23 +7,24 @@
 namespace CSERenderer
 {
 
-class GPUBuffer_Vulkan : public GPUBuffer
+class GPUBuffer : public CSECore::RefCounted
 {
 public:
-	GPUBuffer_Vulkan();
-	GPUBuffer_Vulkan(VkBuffer buffer,
+	GPUBuffer();
+	GPUBuffer(VkBuffer buffer,
 		VkBufferUsageFlags usage,
 		VkDeviceSize size,
 		VmaAllocator allocator,
 		VmaAllocation allocation);
-	GPUBuffer_Vulkan(const GPUBuffer_Vulkan& other) = delete;
-	virtual ~GPUBuffer_Vulkan();
+	GPUBuffer(const GPUBuffer& other) = delete;
+	virtual ~GPUBuffer();
 
-	void operator=(const GPUBuffer_Vulkan& other) = delete;
+	void operator=(const GPUBuffer& other) = delete;
 
 	VkBuffer GetHandle();
 	VkBufferUsageFlags GetUsage();
 	VkDeviceSize GetSize();
+	uint32_t GetID();
 
 private:
 	VkBuffer _buffer;

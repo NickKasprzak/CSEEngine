@@ -12,11 +12,11 @@ class GPUPipelineRegistry_Vulkan
 {
 	struct GPUPipelineEntryDeleter;
 
-	class GPUPipelineEntry : public GPUPipeline_Vulkan
+	class GPUPipelineEntry : public GPUPipeline
 	{
 	public:
 		GPUPipelineEntry();
-		GPUPipelineEntry(GPUPipelineParams_Vulkan& pipelineParams, GPUPipelineRegistry_Vulkan* source);
+		GPUPipelineEntry(GPUPipelineParams& pipelineParams, GPUPipelineRegistry_Vulkan* source);
 		~GPUPipelineEntry();
 
 		void operator=(GPUPipelineEntry&& entry) noexcept;
@@ -43,7 +43,7 @@ public:
 	void Initialize(VkDevice device);
 	void Dispose();
 
-	CSECore::Ref<GPUPipeline> RegisterGraphicsPipeline(GPUPipelineParams_Vulkan& pipelineParams);
+	CSECore::Ref<GPUPipeline> RegisterGraphicsPipeline(GPUPipelineParams& pipelineParams);
 	CSECore::Ref<GPUPipeline> GetGraphicsPipeline(const PipelineInfo& pipelineInfo);
 	void RemoveGraphicsPipeline(GPUPipeline* pipeline);
 

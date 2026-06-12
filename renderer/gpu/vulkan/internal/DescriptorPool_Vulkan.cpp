@@ -156,7 +156,7 @@ void DescriptorPool_Vulkan::ReleaseSSBODescriptor(SSBODescriptor* ssboDescriptor
 
 CSECore::Ref<SamplerDescriptor> DescriptorPool_Vulkan::CreateSamplerDescriptor(CSECore::Ref<GPUImage> image, VkImageLayout requiredLayout, VkSampler sampler)
 {
-	GPUImage_Vulkan* imageVK = image.GetRawCastedPointer<GPUImage_Vulkan>();
+	GPUImage* imageVK = image.GetRawCastedPointer<GPUImage>();
 	uint32_t descriptorID = _freeSamplerID;
 
 	VkDescriptorImageInfo descriptorInfo{};
@@ -220,7 +220,7 @@ SSBODescriptor::~SSBODescriptor()
 	_source->ReleaseSSBODescriptor(this);
 }
 
-SSBO_Vulkan* SSBODescriptor::GetSSBO()
+const SSBO_Vulkan* SSBODescriptor::GetSSBO()
 {
 	return _ssbo.GetRawPointer();
 }
@@ -249,7 +249,7 @@ SamplerDescriptor::~SamplerDescriptor()
 
 }
 
-GPUImage* SamplerDescriptor::GetImage()
+const GPUImage* SamplerDescriptor::GetImage()
 {
 	return _image.GetRawPointer();
 }

@@ -36,7 +36,7 @@ public:
 	virtual void ImageCopy(CSECore::Ref<GPUImage> image /* args */) override;
 
 	virtual CSECore::Ref<GPUPipeline> CreateGraphicsPipeline(const PipelineInfo& pipelineInfo) override;
-	virtual void CreateGraphicsPipelineInputs() override {};
+	virtual CSECore::Ref<GPUPipelineData> CreatePipelineData(CSECore::Ref<GPUDataLayout> dataLayout) override;
 	
 	virtual void BindPipeline() override {};
 	virtual void BindPipelineInputs() override {};

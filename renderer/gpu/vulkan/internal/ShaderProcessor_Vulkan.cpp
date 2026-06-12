@@ -13,7 +13,7 @@ struct ShaderProcessingInfo
 	struct PushConstantLayout
 	{
 		GPUDataLayout layout;
-		GPUPipelineStageFlags_Vulkan stage = PIPELINE_STAGE_NULL;
+		GPUPipelineStageFlags stage = PIPELINE_STAGE_NULL;
 	};
 	std::vector<PushConstantLayout> pushConstantLayouts;
 };
@@ -34,9 +34,9 @@ class ShaderLayoutInfoBuilder
 	struct PushConstantEntry
 	{
 		GPUDataLayout layout;
-		GPUPipelineStageFlags_Vulkan stage;
+		GPUPipelineStageFlags stage;
 
-		PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
+		PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags stage);
 		PushConstantEntry(const PushConstantEntry& other);
 		~PushConstantEntry();
 
@@ -52,7 +52,7 @@ public:
 	void AddVertexAttribute(const VkVertexInputAttributeDescription& vertexAttribute);
 	void AddDescriptorBinding(const DescriptorSetLayoutInfo::DescriptorSetBindingInfo& descBinding);
 	void AddInputEntry(const GPUDataLayout& layout);
-	void AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
+	void AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags stage);
 
 	ShaderLayoutInfo Build();
 
@@ -63,8 +63,8 @@ private:
 	std::vector<PushConstantEntry> _pushConstantEntries;
 };
 
-CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags_Vulkan stage);
-CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags_Vulkan stage);
+CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags stage);
+CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags stage);
 CSECore::Expected<std::vector<VkVertexInputAttributeDescription>, std::string> ProcessShaderVertexAttributes(SpvReflectShaderModule& module);
 
 CSECore::Expected<GPUDataLayout, std::string> CreateDataLayoutFromBlock(const SpvReflectBlockVariable& block);
@@ -95,7 +95,7 @@ CSECore::Expected<ShaderLayoutInfo, std::string> ProcessGraphicsShaderLayout(con
 	return CSECore::CreateExpected<ShaderLayoutInfo, std::string>(builder.Build());
 }
 
-CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags_Vulkan stage)
+CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const std::string& shaderCode, GPUPipelineStageFlags stage)
 {
 	SpvReflectShaderModule reflModule;
 	SpvReflectResult result = spvReflectCreateShaderModule(shaderCode.size(), shaderCode.data(), &reflModule);
@@ -107,7 +107,7 @@ CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderLayout(const s
 	return ProcessShaderModule(reflModule, stage);
 }
 
-CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags_Vulkan stage)
+CSECore::Expected<ShaderProcessingInfo, std::string> ProcessShaderModule(SpvReflectShaderModule& module, GPUPipelineStageFlags stage)
 {
 	uint32_t setCount = 0;
 	spvReflectEnumerateDescriptorSets(&module, &setCount, nullptr);
@@ -500,13 +500,13 @@ void ShaderLayoutInfoBuilder::AddInputEntry(const GPUDataLayout& layout)
 	_inputEntries.push_back(InputEntry(layout));
 }
 
-void ShaderLayoutInfoBuilder::AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage)
+void ShaderLayoutInfoBuilder::AddPushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags stage)
 {
 	for (int i = 0; i < _pushConstantEntries.size(); i++)
 	{
 		if (_pushConstantEntries[i].layout == layout)
 		{
-			_pushConstantEntries[i].stage = (GPUPipelineStageFlags_Vulkan)(_pushConstantEntries[i].stage | stage);
+			_pushConstantEntries[i].stage = (GPUPipelineStageFlags)(_pushConstantEntries[i].stage | stage);
 			return;
 		}
 	}
@@ -559,7 +559,7 @@ void ShaderLayoutInfoBuilder::InputEntry::operator=(const InputEntry& other)
 	layout = other.layout;
 }
 
-ShaderLayoutInfoBuilder::PushConstantEntry::PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage)
+ShaderLayoutInfoBuilder::PushConstantEntry::PushConstantEntry(const GPUDataLayout& layout, GPUPipelineStageFlags stage)
 	: layout(layout), stage(stage)
 {
 

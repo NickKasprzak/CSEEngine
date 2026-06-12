@@ -27,7 +27,7 @@ void GPUPipelineRegistry_Vulkan::Dispose()
 
 }
 
-CSECore::Ref<GPUPipeline> GPUPipelineRegistry_Vulkan::RegisterGraphicsPipeline(GPUPipelineParams_Vulkan& pipelineParams)
+CSECore::Ref<GPUPipeline> GPUPipelineRegistry_Vulkan::RegisterGraphicsPipeline(GPUPipelineParams& pipelineParams)
 {
 	uint32_t hash = CSECore::FNVHash(*pipelineParams.pipelineInfo);
 	auto findResult = _pipelineHashToPipelineIndex.find(hash);
@@ -61,13 +61,13 @@ void GPUPipelineRegistry_Vulkan::RemoveGraphicsPipeline(GPUPipeline* pipeline)
 }
 
 GPUPipelineRegistry_Vulkan::GPUPipelineEntry::GPUPipelineEntry()
-	: GPUPipeline_Vulkan(), _source(nullptr)
+	: GPUPipeline(), _source(nullptr)
 {
 
 }
 
-GPUPipelineRegistry_Vulkan::GPUPipelineEntry::GPUPipelineEntry(GPUPipelineParams_Vulkan& pipelineParams, GPUPipelineRegistry_Vulkan* source)
-	: GPUPipeline_Vulkan(pipelineParams), _source(source)
+GPUPipelineRegistry_Vulkan::GPUPipelineEntry::GPUPipelineEntry(GPUPipelineParams& pipelineParams, GPUPipelineRegistry_Vulkan* source)
+	: GPUPipeline(pipelineParams), _source(source)
 {
 
 }

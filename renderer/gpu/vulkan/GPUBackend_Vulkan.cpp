@@ -2,6 +2,7 @@
 #include "GPUBuffer_Vulkan.h"
 #include "GPUImage_Vulkan.h"
 #include "GPUPipeline_Vulkan.h"
+#include "GPUPipelineData_Vulkan.h"
 #include "internal/GPUPipelineBuilder_Vulkan.h"
 #include "internal/Vertex_Vulkan.h"
 #include "internal/ShaderProcessor_Vulkan.h"
@@ -54,6 +55,7 @@ GPUBackend_Vulkan* GPUBackend_Vulkan::Instance_Vulkan()
 void GPUBackend_Vulkan::Initialize()
 {
 	_device.Initialize();
+	_ssboAllocator.Initialize();
 	_descriptorSetPool.Initialize(_device.GetVkDevice());
 	_pipelineRegistry.Initialize(_device.GetVkDevice());
 }
@@ -65,6 +67,7 @@ void GPUBackend_Vulkan::Dispose()
 
 	_pipelineRegistry.Dispose();
 	_descriptorSetPool.Dispose();
+	_ssboAllocator.Dispose();
 	_device.Dispose();
 }
 
@@ -103,22 +106,16 @@ CSECore::Ref<GPUBuffer> GPUBackend_Vulkan::CreateBuffer(const BufferCreateInfo& 
 		return CSECore::Ref<GPUBuffer>();
 	}
 
-	return CSECore::Ref<GPUBuffer>(new GPUBuffer_Vulkan(buffer, usage, createInfo.size, _device.GetVMAAllocator(), allocation));
+	return CSECore::Ref<GPUBuffer>(new GPUBuffer(buffer, usage, createInfo.size, _device.GetVMAAllocator(), allocation));
 }
 
 void GPUBackend_Vulkan::BufferWrite(CSECore::Ref<GPUBuffer> buffer)
 {
-	GPUBuffer_Vulkan* vkBuffer = static_cast<GPUBuffer_Vulkan*>(buffer.GetRawPointer());
-	CSE_ASSERT(vkBuffer, "Couldnt't write to buffer as the given buffer handle is null.");
-
 	CSE_ASSERT(false, "Reminder to check for transfer source before memcpy.");
 }
 
 void GPUBackend_Vulkan::BufferCopy(CSECore::Ref<GPUBuffer> buffer)
 {
-	GPUBuffer_Vulkan* vkBuffer = static_cast<GPUBuffer_Vulkan*>(buffer.GetRawPointer());
-	CSE_ASSERT(vkBuffer, "Couldnt't copy to buffer as the given buffer handle is null.");
-
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off buffer copy request to compositor.");
 }
 
@@ -185,14 +182,11 @@ CSECore::Ref<GPUImage> GPUBackend_Vulkan::CreateImage(const ImageCreateInfo& cre
 		return CSECore::Ref<GPUImage>();
 	}
 
-	return CSECore::Ref<GPUImage>(new GPUImage_Vulkan(_device.GetVkDevice(), image, imageView, usage, VK_IMAGE_VIEW_TYPE_2D, _device.GetVMAAllocator(), allocation));
+	return CSECore::Ref<GPUImage>(new GPUImage(_device.GetVkDevice(), image, imageView, usage, VK_IMAGE_VIEW_TYPE_2D, _device.GetVMAAllocator(), allocation));
 }
 
 void GPUBackend_Vulkan::ImageCopy(CSECore::Ref<GPUImage> image)
 {
-	GPUImage_Vulkan* vkImage = static_cast<GPUImage_Vulkan*>(image.GetRawPointer());
-	CSE_ASSERT(vkImage, "Couldn't copy to image as the given image handle is null.");
-
 	CSE_ASSERT(false, "Reminder to check for transfer dest and passing off image copy request to compositor.");
 }
 
@@ -286,7 +280,7 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 
 	// Create and register the GPUPipeline object
 
-	GPUPipelineParams_Vulkan pipelineParams{};
+	GPUPipelineParams pipelineParams{};
 	pipelineParams.device = _device.GetVkDevice();
 	pipelineParams.pipeline = pipelineHandles->pipeline;
 	pipelineParams.layout = pipelineHandles->layout;
@@ -298,6 +292,11 @@ CSECore::Ref<GPUPipeline> GPUBackend_Vulkan::CreateGraphicsPipeline(const Pipeli
 	CSECore::Ref<GPUPipeline> pipelineRef = _pipelineRegistry.RegisterGraphicsPipeline(pipelineParams);
 
 	return pipelineRef;
+}
+
+CSECore::Ref<GPUPipelineData> GPUBackend_Vulkan::CreatePipelineData(CSECore::Ref<GPUDataLayout> dataLayout)
+{ 
+	return CSECore::Ref<GPUPipelineData>(); 
 }
 
 CSECore::Ref<SSBO_Vulkan> GPUBackend_Vulkan::CreateSSBO(size_t size)

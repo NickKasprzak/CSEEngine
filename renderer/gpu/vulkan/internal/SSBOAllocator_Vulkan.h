@@ -21,6 +21,7 @@ public:
 
 private:
 	friend class SSBOAllocator_Vulkan;
+	friend struct SSBO_VulkanDeleter;
 
 	SSBOAllocator_Vulkan* _source;
 	CSECore::Ref<GPUBuffer> _buffer;
@@ -28,6 +29,11 @@ private:
 	VkDeviceSize _range;
 
 	SSBO_Vulkan(SSBOAllocator_Vulkan* source, CSECore::Ref<GPUBuffer> buffer, VkDeviceSize offset, VkDeviceSize range);
+};
+
+struct SSBO_VulkanDeleter
+{
+	void operator()(SSBO_Vulkan* ssbo);
 };
 
 class SSBOAllocator_Vulkan

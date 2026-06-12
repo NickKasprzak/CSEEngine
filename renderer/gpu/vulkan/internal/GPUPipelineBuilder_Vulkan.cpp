@@ -5,7 +5,7 @@
 namespace CSERenderer
 {
 
-VkShaderStageFlags PipelineStageFlagsToVkShaderStageFlags(GPUPipelineStageFlags_Vulkan flags);
+VkShaderStageFlags PipelineStageFlagsToVkShaderStageFlags(GPUPipelineStageFlags flags);
 VkCullModeFlags CullModeToVkCullMode(PipelineRasterizationInfo::CullMode cullMode);
 VkFrontFace FrontFaceToVkFrontFace(PipelineRasterizationInfo::FrontFace frontFace);
 VkCompareOp CompareOpToVkCompareOp(CompareOp compareOp);
@@ -388,7 +388,7 @@ bool GPUPipelineBuilder_Vulkan::_hasError()
 	return !_errorMessage.empty();
 }
 
-VkShaderStageFlags PipelineStageFlagsToVkShaderStageFlags(GPUPipelineStageFlags_Vulkan flags)
+VkShaderStageFlags PipelineStageFlagsToVkShaderStageFlags(GPUPipelineStageFlags flags)
 {
 	VkShaderStageFlags vkFlags = 0;
 

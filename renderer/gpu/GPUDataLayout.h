@@ -5,6 +5,7 @@
 #include "refcount/RefCounted.h"
 #include <cstdint>
 #include <vector>
+#include <array>
 #include <string>
 
 namespace CSERenderer
@@ -48,8 +49,6 @@ public:
 	uint32_t GetArrayLength() const;
 	DataLayoutMemberType GetType() const;
 	GPUDataLayout* GetLayout() const;
-
-	void test();
 
 private:
 	uint32_t _layoutHash;
@@ -142,5 +141,19 @@ private:
 
 	bool _runtimeArrayAdded;
 };
+
+enum LayoutViewNavType
+{
+	NAV_MEMBER,
+	NAV_ARRAY
+};
+
+struct LayoutViewNavNode
+{
+	LayoutViewNavType type;
+	uint32_t value;
+};
+
+GPUDataLayoutView GetLayoutView(GPUDataLayout* layout, std::initializer_list<LayoutViewNavNode> path);
 
 }

@@ -14,15 +14,14 @@ set(SOURCES
 	gpu/GPUBackend.h
 	gpu/GPUBackend.cpp
 	gpu/GPUBackend_Impl.h
-	gpu/GPUBuffer.h
+	gpu/GPUBufferCreateInfo.h
 	gpu/GPUDataLayout.h
 	gpu/GPUDataLayout.cpp
 	gpu/GPUDataLayoutRegistry.h
 	gpu/GPUDataLayoutRegistry.cpp
-	gpu/GPUImage.h
-	gpu/GPUPipeline.h
+	gpu/GPUImageCreateInfo.h
+	gpu/GPUImageFormats.h
 	gpu/GPUPipelineCreateInfo.h
-	gpu/GPUPipelineInputs.h
 
 	utility/PlatformWindowInfo_Renderer.h
 )
@@ -66,6 +65,8 @@ if(USE_VULKAN)
 		gpu/vulkan/GPUDevice_Vulkan.cpp
 		gpu/vulkan/GPUImage_Vulkan.h
 		gpu/vulkan/GPUImage_Vulkan.cpp
+		gpu/vulkan/GPUPipelineData_Vulkan.h
+		gpu/vulkan/GPUPipelineData_Vulkan.cpp
 		gpu/vulkan/GPUPipeline_Vulkan.h
 		gpu/vulkan/GPUPipeline_Vulkan.cpp
 	)

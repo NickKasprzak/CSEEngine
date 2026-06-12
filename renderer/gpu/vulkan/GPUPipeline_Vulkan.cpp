@@ -5,7 +5,7 @@
 namespace CSERenderer
 {
 	
-GPUPipeline_Vulkan::GPUPipeline_Vulkan()
+GPUPipeline::GPUPipeline()
 	: _device(VK_NULL_HANDLE),
 	_pipeline(VK_NULL_HANDLE),
 	_layout(VK_NULL_HANDLE),
@@ -17,7 +17,7 @@ GPUPipeline_Vulkan::GPUPipeline_Vulkan()
 
 }
 
-GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipelineParams_Vulkan& params)
+GPUPipeline::GPUPipeline(GPUPipelineParams& params)
 	: _device(params.device), 
 	_pipeline(params.pipeline),
 	_layout(params.layout),
@@ -29,7 +29,7 @@ GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipelineParams_Vulkan& params)
 	_hashID = CSECore::FNVHash(*params.pipelineInfo);
 }
 
-GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept
+GPUPipeline::GPUPipeline(GPUPipeline&& other) noexcept
 	: _device(VK_NULL_HANDLE),
 	_pipeline(VK_NULL_HANDLE),
 	_layout(VK_NULL_HANDLE),
@@ -55,7 +55,7 @@ GPUPipeline_Vulkan::GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept
 	other._hashID = UINT32_MAX;
 }
 
-GPUPipeline_Vulkan::~GPUPipeline_Vulkan()
+GPUPipeline::~GPUPipeline()
 {
 	if (_layout != VK_NULL_HANDLE)
 	{
@@ -68,9 +68,9 @@ GPUPipeline_Vulkan::~GPUPipeline_Vulkan()
 	}
 }
 
-void GPUPipeline_Vulkan::operator=(GPUPipeline_Vulkan&& other) noexcept
+void GPUPipeline::operator=(GPUPipeline&& other) noexcept
 {
-	this->~GPUPipeline_Vulkan();
+	this->~GPUPipeline();
 
 	_device = other._device;
 	_pipeline = other._pipeline;
@@ -88,32 +88,32 @@ void GPUPipeline_Vulkan::operator=(GPUPipeline_Vulkan&& other) noexcept
 	other._hashID = UINT32_MAX;
 }
 
-VkPipeline GPUPipeline_Vulkan::GetPipeline() const
+VkPipeline GPUPipeline::GetPipeline() const
 {
 	return _pipeline;
 }
 
-VkPipelineLayout GPUPipeline_Vulkan::GetPipelineLayout() const
+VkPipelineLayout GPUPipeline::GetPipelineLayout() const
 {
 	return _layout;
 }
 
-const std::vector<CSECore::Ref<GPUDataLayout>>& GPUPipeline_Vulkan::GetSSBOLayouts() const
+const std::vector<CSECore::Ref<GPUDataLayout>>& GPUPipeline::GetSSBOLayouts() const
 {
 	return _ssboLayouts;
 }
 
-const std::vector<PushConstantLayout>& GPUPipeline_Vulkan::GetPushConstantLayouts() const
+const std::vector<PushConstantLayout>& GPUPipeline::GetPushConstantLayouts() const
 {
 	return _pushConstantLayouts;
 }
 
-const RenderAttachmentLayout& GPUPipeline_Vulkan::GetRenderAttachmentLayout() const
+const RenderAttachmentLayout& GPUPipeline::GetRenderAttachmentLayout() const
 {
 	return _renderAttachmentLayout;
 }
 
-uint32_t GPUPipeline_Vulkan::GetHashID() const
+uint32_t GPUPipeline::GetHashID() const
 {
 	return _hashID;
 }
@@ -124,7 +124,7 @@ PushConstantLayout::PushConstantLayout()
 
 }
 
-PushConstantLayout::PushConstantLayout(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage)
+PushConstantLayout::PushConstantLayout(const GPUDataLayout& layout, GPUPipelineStageFlags stage)
 	: _layout(layout), _stage(stage)
 {
 
@@ -152,7 +152,7 @@ const GPUDataLayout& PushConstantLayout::GetDataLayout() const
 	return _layout;
 }
 
-GPUPipelineStageFlags_Vulkan PushConstantLayout::GetStageFlags() const
+GPUPipelineStageFlags PushConstantLayout::GetStageFlags() const
 {
 	return _stage;
 }

@@ -1,5 +1,6 @@
 #pragma once
-#include "../GPUPipeline.h"
+#include "refcount/RefCounted.h"
+#include "../GPUPipelineCreateInfo.h"
 #include "../GPUDataLayout.h"
 #include "../GPUDataLayoutRegistry.h"
 #include "volk.h"
@@ -7,7 +8,7 @@
 namespace CSERenderer
 {
 
-enum GPUPipelineStageFlags_Vulkan
+enum GPUPipelineStageFlags
 {
 	PIPELINE_STAGE_NULL = 0x0,
 	PIPELINE_STAGE_VERTEX = 0x1,
@@ -18,18 +19,18 @@ class PushConstantLayout
 {
 public:
 	PushConstantLayout();
-	PushConstantLayout(const GPUDataLayout& layout, GPUPipelineStageFlags_Vulkan stage);
+	PushConstantLayout(const GPUDataLayout& layout, GPUPipelineStageFlags stage);
 	PushConstantLayout(const PushConstantLayout& other);
 	~PushConstantLayout();
 
 	void operator=(const PushConstantLayout& other);
 
 	const GPUDataLayout& GetDataLayout() const;
-	GPUPipelineStageFlags_Vulkan GetStageFlags() const;
+	GPUPipelineStageFlags GetStageFlags() const;
 
 private:
 	GPUDataLayout _layout;
-	GPUPipelineStageFlags_Vulkan _stage;
+	GPUPipelineStageFlags _stage;
 };
 
 class RenderAttachmentLayout
@@ -52,7 +53,7 @@ private:
 	VkFormat _stencilAttachmentFormat;
 };
 
-struct GPUPipelineParams_Vulkan
+struct GPUPipelineParams
 {
 	VkDevice device;
 	VkPipeline pipeline;
@@ -63,17 +64,17 @@ struct GPUPipelineParams_Vulkan
 	const PipelineInfo* pipelineInfo;
 };
 
-class GPUPipeline_Vulkan : public GPUPipeline
+class GPUPipeline : public CSECore::RefCounted
 {
 public:
-	GPUPipeline_Vulkan();
-	GPUPipeline_Vulkan(GPUPipelineParams_Vulkan& params);
-	GPUPipeline_Vulkan(const GPUPipeline_Vulkan& other) = delete;
-	GPUPipeline_Vulkan(GPUPipeline_Vulkan&& other) noexcept;
-	virtual ~GPUPipeline_Vulkan();
+	GPUPipeline();
+	GPUPipeline(GPUPipelineParams& params);
+	GPUPipeline(const GPUPipeline& other) = delete;
+	GPUPipeline(GPUPipeline&& other) noexcept;
+	virtual ~GPUPipeline();
 
-	void operator=(const GPUPipeline_Vulkan& other) = delete;
-	void operator=(GPUPipeline_Vulkan&& other) noexcept;
+	void operator=(const GPUPipeline& other) = delete;
+	void operator=(GPUPipeline&& other) noexcept;
 
 	VkPipeline GetPipeline() const;
 	VkPipelineLayout GetPipelineLayout() const;

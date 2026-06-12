@@ -42,7 +42,7 @@ CSECore::Ref<SSBO_Vulkan> SSBOAllocator_Vulkan::CreateSSBO(VkDeviceSize size)
 	VkDeviceSize alloc = _bumpAllocHead;
 	_bumpAllocHead += size;
 
-	return CSECore::Ref<SSBO_Vulkan>(new SSBO_Vulkan(this, _buffer, alloc, size));
+	return CSECore::Ref<SSBO_Vulkan>(new SSBO_Vulkan(this, _buffer, alloc, size), SSBO_VulkanDeleter());
 }
 
 void SSBOAllocator_Vulkan::ReleaseSSBO(SSBO_Vulkan* ssbo)
@@ -63,7 +63,7 @@ SSBO_Vulkan::~SSBO_Vulkan()
 
 VkBuffer SSBO_Vulkan::GetBuffer()
 {
-	GPUBuffer_Vulkan* bufferVK = _buffer.GetRawCastedPointer<GPUBuffer_Vulkan>();
+	GPUBuffer* bufferVK = _buffer.GetRawCastedPointer<GPUBuffer>();
 	return bufferVK->GetHandle();
 }
 
@@ -75,6 +75,11 @@ VkDeviceSize SSBO_Vulkan::GetOffset()
 VkDeviceSize SSBO_Vulkan::GetRange()
 {
 	return _range;
+}
+
+void SSBO_VulkanDeleter::operator()(SSBO_Vulkan* ssbo)
+{
+	ssbo->_source->ReleaseSSBO(ssbo);
 }
 
 }

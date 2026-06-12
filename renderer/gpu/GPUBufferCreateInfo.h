@@ -1,5 +1,4 @@
 #pragma once
-#include "refcount/RefCounted.h"
 #include <cstdint>
 
 namespace CSERenderer
@@ -18,12 +17,6 @@ struct BufferCreateInfo
 {
 	BufferUsageFlags usage;
 	uint32_t size;
-};
-
-class GPUBuffer : public CSECore::RefCounted
-{
-public:
-	virtual ~GPUBuffer() {};
 };
 
 }
